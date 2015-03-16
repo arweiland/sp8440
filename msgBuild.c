@@ -13,8 +13,11 @@
 
 
 /*
- *  Note:  The message file must contain a "%d" for the alarm number, and then a %s for the alarm message to the phone,
- *  then two %s in <hr tag for the line color
+ *  Note:  The message template MUST contain:
+ *  two %s in <hr style for the line color,
+ *  a "%s" for the escalation number
+ *  a "%d" for the alarm number
+ *  a %s for the alarm message to the phone
  */
 
 
@@ -23,12 +26,14 @@
 
 #define MAXFILE 2000
 
-int msgBuild_makePushMsg( char *template_fname, char *outbuf, int bufsize, int alarm_num, char *alarm_msg )
+int msgBuild_makePushMsg( char *template_fname, char *outbuf, int bufsize, int alarm_num, char *alarm_msg, int level )
 {
    char buf[MAXFILE];
    FILE *fptr;
    int len;
-   char *color = "yellow";
+   char *color;
+   char *lnone = "\0";
+   char *lptr;
 
    if ( (fptr = fopen( template_fname, "r" )) == NULL )
    {
@@ -46,15 +51,32 @@ int msgBuild_makePushMsg( char *template_fname, char *outbuf, int bufsize, int a
    }
    buf[len] = '\0';                         // null-terminate the template string
 
-   // Create completed HTML output data
-   if ( (len = snprintf( outbuf, bufsize, buf, alarm_num, alarm_msg, color, color )) >= bufsize )
+   switch( level )
    {
-      printf( "file \"%s\" is too long.  Can't be over %d bytes\n", template_fname, MAXFILE );
+      case 0:
+         lptr = lnone;                      // no "Request" message
+         color = "green";
+         break;
+      case 1:
+         lptr = "2nd Request";
+         color = "yellow";
+         break;
+      case 2:
+      default:
+         lptr = "3rd Request";
+         color = "red";
+         break;
+   }
+   
+   // Create completed HTML output data
+   if ( (len = snprintf( outbuf, bufsize, buf, color, color, alarm_num, lptr, alarm_msg )) >= bufsize )
+   {
+      printf( "file \"%s\" is too long.  Can't be over %d bytes. Is: %d bytes\n", template_fname, MAXFILE, len );
       fclose( fptr );
       return -1;
    }
 
-//   printf( "%s\n", outbuf );
+   printf( "%s\n", outbuf );
 //   printf( "Message size: %d\n", len );
    fclose( fptr );
    return len;

@@ -55,7 +55,7 @@ int main( void )
 #endif
 
 
-void msgSend_PushMsgs( char *dept )
+void msgSend_PushMsgs( char *dept, int level )
 {
    int i;
    pthread_t tid[ MAX_SPPHONES ];            // array of thread ids
@@ -65,7 +65,7 @@ void msgSend_PushMsgs( char *dept )
    SPphone_record_t *phone;                  // phone informatiion
 
    // create the message to send
-   msgBuild_makePushMsg( "message.html", msgBuf, MAX_HTML_DATA, 100, dept);
+   msgBuild_makePushMsg( "message.html", msgBuf, MAX_HTML_DATA, 100, dept, level );
 
    // create the send threads
    phone = NULL;                             // start with first record

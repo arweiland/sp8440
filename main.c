@@ -12,7 +12,7 @@ int main( void )
    spRec_Init();
    server_Init( &tid );
 
-   msgSend_PushMsgs( "tools" );
+   msgSend_PushMsgs( "Electrical", 2);
 
    // join on web server thread
    pthread_join( tid, NULL );

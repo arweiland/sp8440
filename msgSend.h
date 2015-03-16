@@ -14,7 +14,7 @@
 #ifndef _MSGSEND_H_
 #define _MSGSEND_H_
 
-void msgSend_PushMsgs( char *dept );     // send message to all available phones
+void msgSend_PushMsgs( char *dept, int level );     // send message to all available phones
 
 
 #endif
