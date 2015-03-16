@@ -1,11 +1,25 @@
+/** 
+ *  @file   msgSend.c
+ *  @author Ron Weiland, Indyme Solutions
+ *  @date   3/13/15
+ *  @brief  Message sender
+ *
+ *  @section DESCRIPTION 
+ * 
+ * Creates and sends the HTML messages to the phones in parallel using libcurl
+ *
+ */
 
 #include <curl/curl.h>
 #include <pthread.h>
 
+#include "msgSend.h"
 #include "msgBuild.h"
+#include "spRec.h"
 
-#define MAX_DATA 2000
+#define MAX_HTML_DATA 2000       // max size of HTML message to send
 
+/*
 char *ip_addrs[] = 
 {
    "192.168.1.248",
@@ -16,6 +30,9 @@ char *ip_addrs[] =
 };
 
 #define N_IP_ADDRS (sizeof( ip_addrs ) / sizeof( char *))
+*/
+
+#define MAX_SPPHONES    50            // max phones to send to
 
 /*---  structure to pass to thread ---*/
 typedef struct
@@ -28,36 +45,46 @@ typedef struct
 void *msgSend_PushMsgThread( void *ip_addr );
 size_t msgSend_WriteCallback( void *buffer, size_t size, size_t nmemb, void *data );
 
-#ifdef TEST
-
+#if 0
 int main( void )
 {
+   spRec_Init();                              // initialize phone records handler
+   msgSend_PushMsgs( "tools" );
+   return 0;
+}
+#endif
+
+
+void msgSend_PushMsgs( char *dept )
+{
    int i;
-   pthread_t tid[ N_IP_ADDRS ];              // array of thread ids
-   char msg_buf[ MAX_DATA ];                 // message buffer to send
-   curlThreadMsg_t msgs[ N_IP_ADDRS ];       // array of message data
+   pthread_t tid[ MAX_SPPHONES ];            // array of thread ids
+   char msgBuf[ MAX_HTML_DATA ];             // message buffer to send
+   curlThreadMsg_t msgs[ MAX_SPPHONES ];     // array of message data
+   int msgIndex;
+   SPphone_record_t *phone;                  // phone informatiion
 
    // create the message to send
-   msgBuild_makePushMsg( "message.html", msg_buf, MAX_DATA, 100, "Tools" );
+   msgBuild_makePushMsg( "message.html", msgBuf, MAX_HTML_DATA, 100, dept);
 
-   // start the threads to send the data
-   for( i = 0; i < N_IP_ADDRS; i++ )
+   // create the send threads
+   phone = NULL;                             // start with first record
+   msgIndex = 0;
+   while( (phone = spRec_GetNextRecord( phone )) != NULL )
    {
-      msgs[i].msg = msg_buf;                // pointer to message to send
-      msgs[i].ip_addr = ip_addrs[i];        // pointer to IP address to send to
-      pthread_create( &tid[i], NULL, msgSend_PushMsgThread, (void *)&msgs[i] );
+      msgs[ msgIndex ].ip_addr = phone->ip_addr;   // IP address of phone to send to
+      msgs[ msgIndex ].msg = msgBuf;               // message pointer
+      pthread_create( &tid[ msgIndex ], NULL, msgSend_PushMsgThread, (void *)&msgs[ msgIndex ] );
+      msgIndex++;
    }
 
    /* now wait for all threads to terminate */
-   for(i=0; i< N_IP_ADDRS; i++)
+   for(i=0; i< msgIndex; i++)
    {
       pthread_join(tid[i], NULL);
       fprintf(stderr, "Thread %d terminated\n", i);
    }
-
-   return 0;
 }
-#endif
 
 void *msgSend_PushMsgThread( void *msg )
 {

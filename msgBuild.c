@@ -1,3 +1,17 @@
+/** 
+ *  @file msgBuild.c
+ *  @author Ron Weiland, Indyme Solutions
+ *  @date   3/13/15
+ *  @brief  phone alert msg builder
+ *
+ *  @section DESCRIPTION 
+ * 
+ * 
+ * Using HTML template, creates message ready to send to phone
+ *
+ */
+
+
 /*
  *  Note:  The message file must contain a "%d" for the alarm number, and then a %s for the alarm message to the phone,
  *  then two %s in <hr tag for the line color

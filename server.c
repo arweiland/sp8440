@@ -1,3 +1,14 @@
+/** 
+ *  @file   server.c
+ *  @brief  Custom web server based on libevent for Spectralink.
+ *  @author Ron Weiland, Indyme Solutions
+ *  @date   3/13/15
+ * 
+ * Handles:
+ *     Audio file requests from phone,
+ *     "get" message from phone when soft-key is pressed,
+ *     Telephony notification events.
+ */
 
 #include <event2/event.h>
 #include <event2/buffer.h>
@@ -14,16 +25,24 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <string.h>
-
+#include <pthread.h>
 
 /*---- internal function prototypes ---*/
 
+void *_server_DispatchThread( void *arg );
 char *_server_getCmdTypeStr( int type );
-void _server_sendAudio( char *root, char *uri, struct evhttp_request *req );
+void _server_sendAudio( char *rootDir, char *uri, struct evhttp_request *req );
 
 // Note:  evhttp_request is defined in event2/http_struct.h
 
-char *root = ".";         // root directory to service files from
+char *rootDir = ".";         // root directory to service files from
+
+
+void server_Init( pthread_t *tid )
+{
+   // Start the web server thread
+   pthread_create( tid, NULL, _server_DispatchThread, NULL );
+}
 
 
 void _server_post_handler( struct evhttp_request *req, void *state )
@@ -57,7 +76,7 @@ void _server_post_handler( struct evhttp_request *req, void *state )
 void activate_handler(struct evhttp_request *req, void *state)
 {
    struct evkeyvalq headers;
-   char *val;
+   const char *val;
 
    printf( "Activate Ack handler called! URI: req->uri\n" );
 
@@ -114,7 +133,7 @@ void _server_generic_handler(struct evhttp_request *req, void *state)
 
    if ( strcasestr( str, ".wav" ) )
    {
-      _server_sendAudio( root, str, req );
+      _server_sendAudio( rootDir, str, req );
    }
    else
    {
@@ -170,7 +189,7 @@ void _server_generic_handler(struct evhttp_request *req, void *state)
     printf( "\n");
 }
 
-int main(int argc, char* argv[])
+void *_server_DispatchThread( void *arg )
 {
    char *errStr;
 
@@ -182,15 +201,16 @@ int main(int argc, char* argv[])
    struct evhttp * http_server = evhttp_new(base);
    if(!http_server)
    {
-      return -1;
+      printf( "%s: Couldn't get web server base!\n", __func__ );
+      return NULL;
    }
 
    int ret = evhttp_bind_socket(http_server,http_addr,http_port);
    if(ret!=0)
    {
       errStr = strerror( errno );
-      printf( "Bind failed!: %s\n", errStr );
-      return -1;
+      printf( "%s: Bind failed!: %s\n", __func__, errStr );
+      return NULL;
    }
 
    /* Set a callback for requests to "/specific". */
@@ -203,12 +223,13 @@ int main(int argc, char* argv[])
 
    printf("http server start OK! \n");
 
+   // The following is a blocking call
    event_base_dispatch(base);
 
    evhttp_free(http_server);
+   printf( "server: Exited event_base_dispatch!\n" );
 
-//   WSACleanup();
-   return 0;
+   return NULL;
 }
 
 
@@ -237,13 +258,13 @@ char *_server_getCmdTypeStr( int type )
 
   Send an audio file back to the requester
 
-  Root is the root directory for files
+  RootDir is the root directory for files
   uri contains the file name / path
   req is the request
 
   ------------------------------------------------------------*/
 
-void _server_sendAudio( char *root, char *uri, struct evhttp_request *req )
+void _server_sendAudio( char *rootDir, char *uri, struct evhttp_request *req )
 {
    char fname[100];
    char strbuf[20];
@@ -252,7 +273,7 @@ void _server_sendAudio( char *root, char *uri, struct evhttp_request *req )
    struct evbuffer *evb = NULL;
    struct evkeyvalq *headers;
 
-   sprintf( fname, "%s%s", root, uri );
+   sprintf( fname, "%s%s", rootDir, uri );
    if ( (fd = open( fname, O_RDONLY )) == -1 )    // open the file 
    {
       printf( "Can't open file %s: %s\n", fname, strerror( errno ));

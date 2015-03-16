@@ -1,20 +1,23 @@
 
-SOURCES = curlTest.c sp_msg.c
+SOURCES = main.c msgSend.c msgBuild.c server.c spRec.c cJSON.c
 OBJECTS = $(SOURCES:.c=.o)
 
 CC = gcc
 #CC = bfin-linux-uclibc-gcc
 
-CFLAGS = -Wall  -D_GNU_SOURCE -DTEST
-LDFLAGS = -lcurl -lpthread
+CFLAGS = -Wall -ggdb -D_GNU_SOURCE 
+LDFLAGS = -lcurl -levent -lpthread -lm
 
-%.o : %.c
-	$(CC) $(CFLAGS) -c $<
+#%.o : %.c
+#	$(CC) $(CFLAGS) -c $<
 
-all:	msgSend server spRec
+all:	main
 
-msgSend:  msgSend.o msgBuild.o
-	$(CC) $(CFLAGS) msgSend.o msgBuild.o -o msgSend -lcurl -lpthread
+main: 	main.o server.o  msgSend.o msgBuild.o spRec.o cJSON.o
+	$(CC) $(CFLAGS) main.o server.o msgSend.o msgBuild.o spRec.o cJSON.o -o main $(LDFLAGS)
+
+msgSend:  msgSend.o msgBuild.o spRec.o cJSON.o
+	$(CC) $(CFLAGS) msgSend.o msgBuild.o spRec.o cJSON.o -o msgSend $(LDFLAGS)
 
 server:	server.o
 	$(CC) $(CFLAGS) server.o  -o server -levent
@@ -26,3 +29,7 @@ clean:
 	rm -f *.o msgSend server spRec
 
 
+dep:
+	$(CC) -M $(SOURCES) $(CFLAGS)  > .depend
+
+-include .depend
