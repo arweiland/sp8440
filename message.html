@@ -1,14 +1,11 @@
-<!-- This one works with CURL. Javascript in <head> -->
-
 <!DOCTYPE html>
 
 <PolycomIPPhone><Data priority='critical'>
 
-</style>
-
 <html>
-   <head>
-      <style>
+  <head>
+	 <meta charset="UTF-8">
+    <style>
 	hr {
 	color:%s;background-color:%s;
 	height:20px;
@@ -18,56 +15,50 @@
 	font-size:140%;
 	text-align:center;
 	}
-      </style>
-      <Title>Indyme Test</Title>
-      <script type="text/javascript">
+    </style>
+   <Title>Indyme Test</Title>
+   <script type="text/javascript">
 
 	PolySoftKey.customSoftkeyEvent.connect(skCallBack);
 	PolySoftKey.setSoftkeyLabel(0, "Accept");
 	PolySoftKey.setSoftkeyLabel(1, "");
 	PolySoftKey.setSoftkeyLabel(2, "");
-	PolySoftKey.setSoftkeyLabel(3, "Reject");
+	PolySoftKey.setSoftkeyLabel(3, "Decline");
 
 	PolyUri.pushUri('play:http://192.168.1.138:8080/blip.wav');
 
 	function skCallBack(key, skEvent){
-           switch( key ){
-                 case 0:
-                    document.getElementById("eventStuff").innerHTML = "Accept was pressed";
-                    SendMsg();
-                    break;
-                 case 3:
-                    document.getElementById("eventStuff").innerHTML = "Reject was pressed";
-                    break;
-            }
-            document.getElementById("eventValue").innerHTML = skEvent;
-          }
+      switch( key ){
+        case 0:
+           document.getElementById("eventStuff").innerHTML = "Accepted";
+           SendReply( "ack" );
+           break;
+	     case 3:
+           document.getElementById("eventStuff").innerHTML = "Declined";
+	        SendReply( "decline" );
+	        break;
+	     default:
+           break;
+     }
+     document.getElementById("eventValue").innerHTML = skEvent;
+   }
 
-          function SendMsg() {
-             var client = new XMLHttpRequest();
-             client.open("POST", "http://192.168.1.138:8080/i_activate?response=ack&alarm=%d", false);
-             client.setRequestHeader("Content-Type", "text/plain");
-             client.send();
-         }
-   </script>
-
-    <meta name="color" content="green">
-   </head>
+   function SendReply( reply ) {
+     var client = new XMLHttpRequest();
+     client.open("POST", "http://192.168.1.138:8080/i_activate?response=" + reply + "&alarm=%d", false);
+     client.setRequestHeader("Content-Type", "text/plain");
+     client.send();
+   }
+    </script>
+  </head>
 
   <body>
        <hr/>
-       <div id="req">
-            <p>%s</p>       
-       <div id="help", align="center">
-            <p>Assistance Required</p>
-       <div id="location", align="center">
-	    <h1>%s</h1>
-       <div id="eventText">
-<!--	    <p>Last Click: <b id='eventStuff'></b> </p>  -->
-       </div>
-		 <div>
-         <hr style = "position:absolute; left:10px; right:10px; bottom:10px;" />
-		 </div>
+       <div id="req"> <p>%s</p> </div>
+       <div align="center"> <p>Assistance Required</p> </div>
+       <div id="location", align="center">  <h1>%s</h1> </div>
+       <div id="eventText"> <p><b id='eventStuff'></b> </p> </div>
+		 <div> <hr style = "position:absolute; left:10px; right:10px; bottom:10px;" /> </div>
    </body>
 </html>
 </Data></PolycomIPPhone>
