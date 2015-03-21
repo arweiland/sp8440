@@ -1,3 +1,11 @@
+/**
+ *  @file   strsub.c
+ *  @author Ron Weiland, Indyme Solutions
+ *  @brief  String substitution module
+ *  
+ */
+
+
 #include <stdio.h>
 #include <string.h>
 #include <malloc.h>

@@ -1,3 +1,11 @@
+/** 
+ *  @file   config.h
+ *  @author Ron Weiland, Indyme Solutions
+ *  @date   3/13/15
+ *  @brief  Helper functions for configuration parser, header file
+ *
+ *
+ */
 
 #ifndef _OURCONFIG_H_
 #define _OURCONFIG_H_

@@ -4,9 +4,9 @@
  *  @date   3/13/15
  *  @brief  Handles phone status
  *
- *  @section DESCRIPTION 
+ *  @section Description 
  * 
- * Contains code to track the status of phones.
+ * Contains code to track the status of phones.\n
  * Saves current status in JSON in case of reboot.
  *
  */

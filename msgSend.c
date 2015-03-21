@@ -3,9 +3,8 @@
  *  @author Ron Weiland, Indyme Solutions
  *  @date   3/13/15
  *  @brief  Message sender
- *
- *  @section DESCRIPTION 
  * 
+ * @section Description
  * Creates and sends the HTML messages to the phones in parallel using libcurl
  *
  */
@@ -42,8 +41,9 @@ typedef struct
 }curlThreadMsg_t;
 
 
-void *msgSend_PushMsgThread( void *ip_addr );
-size_t msgSend_WriteCallback( void *buffer, size_t size, size_t nmemb, void *data );
+void _msgSend_PushMsgs( char *msg  );
+void *_msgSend_PushMsgThread( void *ip_addr );
+size_t _msgSend_WriteCallback( void *buffer, size_t size, size_t nmemb, void *data );
 
 #if 0
 int main( void )
@@ -54,18 +54,33 @@ int main( void )
 }
 #endif
 
+void msgSend_PushAlert( char *dept, int level )
+{
+   char msgBuf[ MAX_HTML_DATA ];             // message buffer to send
 
-void msgSend_PushMsgs( char *dept, int level )
+   // create the message to send
+   msgBuild_makeAlertMsg( "message.html", msgBuf, MAX_HTML_DATA, dept, 100, level );
+   _msgSend_PushMsgs( msgBuf );
+}
+
+void msgSend_PushAccept( char *dept, int type )
+{
+   char msgBuf[ MAX_HTML_DATA ];             // message buffer to send
+   char *msg;
+
+   msg = (type == 0) ? "Request Accepted" : "Request Complete";
+   msgBuild_makeAcceptMsg( "accept.html", msgBuf, MAX_HTML_DATA, dept, msg );
+   _msgSend_PushMsgs( msgBuf );
+}
+
+
+void _msgSend_PushMsgs( char *msg )
 {
    int i;
    pthread_t tid[ MAX_SPPHONES ];            // array of thread ids
-   char msgBuf[ MAX_HTML_DATA ];             // message buffer to send
    curlThreadMsg_t msgs[ MAX_SPPHONES ];     // array of message data
    int msgIndex;
    SPphone_record_t *phone;                  // phone informatiion
-
-   // create the message to send
-   msgBuild_makePushMsg( "message.html", msgBuf, MAX_HTML_DATA, 100, dept, level );
 
    // create the send threads
    phone = NULL;                             // start with first record
@@ -73,8 +88,8 @@ void msgSend_PushMsgs( char *dept, int level )
    while( (phone = spRec_GetNextRecord( phone )) != NULL )
    {
       msgs[ msgIndex ].ip_addr = phone->ip_addr;   // IP address of phone to send to
-      msgs[ msgIndex ].msg = msgBuf;               // message pointer
-      pthread_create( &tid[ msgIndex ], NULL, msgSend_PushMsgThread, (void *)&msgs[ msgIndex ] );
+      msgs[ msgIndex ].msg = msg;           // message pointer
+      pthread_create( &tid[ msgIndex ], NULL, _msgSend_PushMsgThread, (void *)&msgs[ msgIndex ] );
       msgIndex++;
    }
 
@@ -84,9 +99,11 @@ void msgSend_PushMsgs( char *dept, int level )
       pthread_join(tid[i], NULL);
       fprintf(stderr, "Thread %d terminated\n", i);
    }
+   printf( "Leaving %s\n", __func__ );
+
 }
 
-void *msgSend_PushMsgThread( void *msg )
+void *_msgSend_PushMsgThread( void *msg )
 {
    int ret;
    curlThreadMsg_t *msgData;
@@ -108,8 +125,9 @@ void *msgSend_PushMsgThread( void *msg )
    curl_easy_setopt(hnd, CURLOPT_HTTPAUTH, 2L);
 
    curl_easy_setopt(hnd, CURLOPT_TIMEOUT, 5L );                        // Set timeout to 5 seconds
-   curl_easy_setopt(hnd, CURLOPT_WRITEFUNCTION, msgSend_WriteCallback );   // Set the received data callback function
+   curl_easy_setopt(hnd, CURLOPT_WRITEFUNCTION, _msgSend_WriteCallback );   // Set the received data callback function
    curl_easy_setopt(hnd, CURLOPT_WRITEDATA, msg );                     // Structure to send to callback function
+   curl_easy_setopt(hnd, CURLOPT_NOSIGNAL, 1);                         // shut off signals (to avoid "Alarm clock" in pthreads)
 
    /*--- Unneeded operations ---*/
    // curl_easy_setopt(hnd, CURLOPT_ERRORBUFFER, errorBuf );  // Set error buffer
@@ -159,7 +177,7 @@ void *msgSend_PushMsgThread( void *msg )
    return NULL;
 }
 
-/*--------------------------( msgSender_WriteCallback )----------------------------
+/*-------------------------( _msgSender_WriteCallback )-------------------------
   This function receives data from the phones in response to the data push.
   We don't want to do anything with it, we just don't want it to go to stdout.
   Data pointed to by buffer is NOT null-terminated!
@@ -167,9 +185,9 @@ void *msgSend_PushMsgThread( void *msg )
   This function MUST return the total number of bytes passed to it!
 -----------------------------------------------------------------------------*/
 
-size_t msgSend_WriteCallback( void *buffer, size_t size, size_t nmemb, void *data )
+size_t _msgSend_WriteCallback( void *buffer, size_t size, size_t nmemb, void *data )
 {
-   printf( "WriteCallback called for address %s\n", ((curlThreadMsg_t *)data)->ip_addr );
+   printf( "%s called for address %s\n", __func__, ((curlThreadMsg_t *)data)->ip_addr );
 
 //   printf( "Size: %d:%d, Data: \n", (int)size, (int)nmemb );
 //   fwrite( buffer, size, nmemb, stdout );

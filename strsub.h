@@ -1,3 +1,9 @@
+/**
+ *  @file   strsub.h
+ *  @author Ron Weiland, Indyme Solutions
+ *  @brief  String substitution module header file
+ *  
+ */
 
 #ifndef _STRSUB_H_
 #define _STRSUB_H_

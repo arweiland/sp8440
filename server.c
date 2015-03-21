@@ -5,15 +5,16 @@
  *  @date   3/13/15
  * 
  * Handles:
- *     Audio file requests from phone,
- *     "get" message from phone when soft-key is pressed,
- *     Telephony notification events.
+ *     - Audio file requests from phone,
+ *     - "get" message from phone when soft-key is pressed,
+ *     - Telephony notification events.
  */
 
 #include <event2/event.h>
 #include <event2/buffer.h>
 #include <event2/http.h>
 #include <event2/keyvalq_struct.h>
+
 // Without the following, get "incomplete type" when trying to dereference evhttp_request
 #include <event2/http_struct.h>
 
@@ -22,26 +23,44 @@
 #include <errno.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/socket.h>
+#include <sys/ioctl.h>
+#include <net/if.h>
+#include <arpa/inet.h>
+
 #include <fcntl.h>
 #include <unistd.h>
 #include <string.h>
 #include <pthread.h>
+
+#include "server.h"
+#include "msgSend.h"
+#include "config.h"
 
 /*---- internal function prototypes ---*/
 
 void *_server_DispatchThread( void *arg );
 char *_server_getCmdTypeStr( int type );
 void _server_sendAudio( char *rootDir, char *uri, struct evhttp_request *req );
+void _server_getOurIP( void );
 
 // Note:  evhttp_request is defined in event2/http_struct.h
+// Note:  struct evhttp is defined in http-internal.h, which is not global (opaque)
 
-char *rootDir = ".";         // root directory to service files from
+char *rootDir = ".";           // root directory to service files from
 
+char serverIpAddress[ 40 ];    // our own IP address
 
 void server_Init( pthread_t *tid )
 {
+   _server_getOurIP();
    // Start the web server thread
    pthread_create( tid, NULL, _server_DispatchThread, NULL );
+}
+
+char *server_GetOurAddress( void )
+{
+   return serverIpAddress;
 }
 
 
@@ -77,25 +96,43 @@ void activate_handler(struct evhttp_request *req, void *state)
 {
    struct evkeyvalq headers;
    const char *val;
+   const char *dept;
+   const char *alarm;
 
-   printf( "Activate Ack handler called! URI: req->uri\n" );
-
-   printf( "activate. Uri: %s\n", req->uri );
+   printf( "activate. Uri: %s, Source: %s\n", req->uri, req->remote_host );
 
    evhttp_parse_query( req->uri, &headers );
+
+   if ( (dept = evhttp_find_header( &headers, "dept" )) != NULL )
+   {
+      printf( "Department: %s\n", dept );
+   }
+   else
+   {
+      printf( "Department not found\n" );
+   }
 
    if ( (val = evhttp_find_header( &headers, "response" )) != NULL )
    {
       printf( "Action: %s\n", val );
+      if (strcasestr( val, "ack" ))
+      {
+         printf( "%s Acknowledged\n", req->remote_host );
+         msgSend_PushAccept( (char *)dept, MSGSEND_ACCEPT );
+      }
+      else if (strcasestr( val, "decline" ))
+      {
+         printf( "%s Declined\n", req->remote_host );
+      }
    }
    else
    {
       printf( "Action not found\n" );
    }
 
-   if ( (val = evhttp_find_header( &headers, "alarm" )) != NULL )
+   if ( (alarm = evhttp_find_header( &headers, "alarm" )) != NULL )
    {
-      printf( "Alarm: %s\n", val );
+      printf( "Alarm: %s\n", alarm );
    }
    else
    {
@@ -193,12 +230,19 @@ void *_server_DispatchThread( void *arg )
 {
    char *errStr;
 
-   short          http_port = 8080;
+   short          http_port;
    char          *http_addr = INADDR_ANY;
+   char portStr[10];
 
-   struct event_base * base = event_base_new();
+   http_port = (short)config_readInt( "general", "port", 8090 );
 
-   struct evhttp * http_server = evhttp_new(base);
+   struct event_base *base = event_base_new();
+   struct evhttp *http_server = evhttp_new( base );
+
+   // add port to server address for other modules
+   sprintf( portStr, ":%d", http_port );
+   strcat( serverIpAddress, portStr );
+
    if(!http_server)
    {
       printf( "%s: Couldn't get web server base!\n", __func__ );
@@ -300,3 +344,27 @@ void _server_sendAudio( char *rootDir, char *uri, struct evhttp_request *req )
    evbuffer_free(evb);
 }
 
+void _server_getOurIP( void )
+{
+    int fd;
+    struct ifreq ifr;
+     
+    char iface[] = "eth0";
+     
+    fd = socket(AF_INET, SOCK_DGRAM, 0);
+ 
+    //Type of address to retrieve - IPv4 IP address
+    ifr.ifr_addr.sa_family = AF_INET;
+ 
+    //Copy the interface name in the ifreq structure
+    strncpy(ifr.ifr_name , iface , IFNAMSIZ-1);
+     
+    //get the ip address
+    ioctl(fd, SIOCGIFADDR, &ifr);
+     
+    //display ip
+    strncpy( serverIpAddress,  inet_ntoa(( (struct sockaddr_in *)&ifr.ifr_addr )->sin_addr), sizeof( serverIpAddress) );
+    printf("IP address of %s - %s\n" ,iface, serverIpAddress );
+    close(fd);
+
+}

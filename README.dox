@@ -1,0 +1,41 @@
+/**
+
+@mainpage Lowes Spectralink Project
+
+@author Ron Weiland, Indyme Solutions
+
+@section intro Introduction
+This code works as a plug-in to the CLX to send alarm messages
+to Spectralink 8440 phones and receives responses from them.  
+
+The receiver of the message has the option of accepting or
+rejecting the alarm.
+
+The plugin is made up of several modules:
+@subsection server Server Module
+The server (server.c) is a custom web server based on libevent that performs multiple duties:
+- Handles sending of audio alert messages to phones
+- Handles return URI when phone user presses softkey
+- Handles telephony response messages 
+
+@subsection msgsender MsgSender Module
+The message sender module (msgSend.c) uses libcurl to send HTML pages to all available phones in parallel using digest authorization
+
+@subsection builder MsgBuilder Module
+This module (msgBuild.c) takes information on the alert to be sent such as 
+- Alarm number
+- Department
+- Escalation level
+- Server IP:port
+
+and uses it, along with a tokenized template HTML files to create a final HTML file to send to the phones
+
+@subsection sprec Phone Status Recorder Module
+This module (spRec.c) keeps track of the current status of phones.  Status is saved to disk in JSON format which is read in
+whenever the system boots.
+
+@subsection config Configuration Module
+This modules (config.c) reads in configuration information from a Windows INI-type configuration file
+
+@image html 8440.jpg
+*/

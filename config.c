@@ -1,3 +1,12 @@
+/** 
+ *  @file   config.c
+ *  @author Ron Weiland, Indyme Solutions
+ *  @date   3/13/15
+ *  @brief  Helper functions for configuration parser
+ *
+ *
+ */
+
 #include <stdio.h>
 
 #include "jconfig.h"

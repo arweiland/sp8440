@@ -4,10 +4,10 @@
 
 <html>
   <head>
-	 <meta charset="UTF-8">
+    <meta charset="UTF-8">
     <style>
 	hr {
-	color:%s;background-color:%s;
+	color:[COLOR];background-color:[COLOR];
 	height:20px;
 	border:none;
 	}
@@ -25,16 +25,16 @@
 	PolySoftKey.setSoftkeyLabel(2, "");
 	PolySoftKey.setSoftkeyLabel(3, "Decline");
 
-	PolyUri.pushUri('play:http://192.168.1.138:8080/blip.wav');
+	PolyUri.pushUri('play:http://[SERVER]/dingdong.wav');
 
 	function skCallBack(key, skEvent){
       switch( key ){
         case 0:
-           document.getElementById("eventStuff").innerHTML = "Accepted";
+           document.getElementById("event").innerHTML = "Accepted";
            SendReply( "ack" );
            break;
 	     case 3:
-           document.getElementById("eventStuff").innerHTML = "Declined";
+           document.getElementById("event").innerHTML = "Declined";
 	        SendReply( "decline" );
 	        break;
 	     default:
@@ -45,7 +45,8 @@
 
    function SendReply( reply ) {
      var client = new XMLHttpRequest();
-     client.open("POST", "http://192.168.1.138:8080/i_activate?response=" + reply + "&alarm=%d", false);
+	  var dept = document.getElementById("location").innerHTML;
+     client.open("POST", "http://[SERVER]/i_activate?response=" + reply + "&alarm=[ALARM]&dept=" + dept, false);
      client.setRequestHeader("Content-Type", "text/plain");
      client.send();
    }
@@ -54,12 +55,13 @@
 
   <body>
        <hr/>
-       <div id="req"> <p>%s</p> </div>
+       <p>[LEVEL]</p>
        <div align="center"> <p>Assistance Required</p> </div>
-       <div id="location", align="center">  <h1>%s</h1> </div>
-       <div id="eventText"> <p><b id='eventStuff'></b> </p> </div>
-		 <div> <hr style = "position:absolute; left:10px; right:10px; bottom:10px;" /> </div>
+       <h1 id="location", align="center">[DEPT]</h1>
+       <p><b id='event'></b> </p>
+       <hr style = "position:absolute; left:10px; right:10px; bottom:10px;" />
    </body>
+
 </html>
 </Data></PolycomIPPhone>
 
