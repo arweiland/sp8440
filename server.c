@@ -35,6 +35,8 @@
 
 #include "server.h"
 #include "msgSend.h"
+#include "msgXML.h"
+#include "spRec.h"
 #include "config.h"
 
 /*---- internal function prototypes ---*/
@@ -70,6 +72,7 @@ void _server_post_handler( struct evhttp_request *req, void *state )
    size_t len;
    char xmlData[ 500 ];
    struct evbuffer *inBuf;
+   phone_reg_t *phone_reg;
 
    cmd = evhttp_request_get_command(req);
    printf( "In post handler.  Command: %s from %s\n", _server_getCmdTypeStr( cmd ), req->remote_host );
@@ -87,7 +90,25 @@ void _server_post_handler( struct evhttp_request *req, void *state )
       return;
    }
    evbuffer_copyout( inBuf, xmlData, len );
+   xmlData[ len ] = '\0';
+
    printf( "Post data length: %ld. Data:\n%s", len, xmlData );
+
+   if ( (phone_reg = msgXML_parseRegistration( xmlData, len )) == NULL )
+   {
+      printf( "Parsing of phone registration failed!\n" );
+   }
+   else
+   {
+      printf( "Phone IP: %s\n", phone_reg->phoneIP );
+      printf( "Mac address: %s\n", phone_reg->MACAddress );
+      printf( "Line Number: %s\n", phone_reg->LineNumber );
+      printf( "Time Stamp: %s\n", phone_reg->TimeStamp );
+
+      printf( "%s: Saving new record\n", __func__ );
+      spRec_AddRecord( phone_reg->phoneIP, phone_reg->MACAddress, atoi(phone_reg->LineNumber) );
+   }
+
    evhttp_send_reply(req, HTTP_OK, "OK", NULL);
 }
 

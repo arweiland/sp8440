@@ -1,12 +1,12 @@
 
-SOURCES = main.c msgSend.c msgBuild.c server.c spRec.c cJSON.c strsub.c config.c jconfig.c
+SOURCES = main.c msgSend.c msgBuild.c msgXML.c server.c spRec.c cJSON.c strsub.c config.c jconfig.c
 OBJECTS = $(SOURCES:.c=.o)
 
 CC = gcc
 #CC = bfin-linux-uclibc-gcc
 
 CFLAGS = -Wall -ggdb -D_GNU_SOURCE 
-LDFLAGS = -lcurl -levent -lpthread -lm
+LDFLAGS = -lcurl -levent -lpthread -lm -lexpat
 
 #%.o : %.c
 #	$(CC) $(CFLAGS) -c $<
@@ -26,7 +26,7 @@ spRec:	spRec.o cJSON.o
 	$(CC) $(CFLAGS) spRec.o cJSON.o  -o spRec -lm
 
 clean:
-	rm -f *.o msgSend server spRec
+	rm -f *.o main msgSend server spRec
 
 
 dep:
