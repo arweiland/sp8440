@@ -21,14 +21,15 @@
 typedef struct
 {
    int in_use;                         // True if structure is in use, false if free, -1 if past last
-   char mac[MAX_MAC];                  // MAC address of phone
-   char ip_addr[MAX_IP_ADDR];          // IP address of phone
+   char mac[MAX_MAC+1];                // MAC address of phone
+   char ip_addr[MAX_IP_ADDR+1];        // IP address of phone
    int line_number;                    // Line number of phone
    int last_seen;                      // When last seen (UTC)
 }SPphone_record_t;
 
 
-void spRec_Init( void );
+int spRec_Init( void );
+void spRec_CheckStale( void );
 SPphone_record_t *spRec_GetNextRecord( SPphone_record_t *sptr );
 int spRec_AddRecord( char *ip_addr, char *mac, int line_num );
 void spRec_RemoveIP( char *ip_addr );

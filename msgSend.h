@@ -16,7 +16,7 @@
 #define MSGSEND_ACCEPT    0
 #define MSGSEND_COMPLETE  1
 
-void msgSend_PushAlert( char *dept, int level );     // send Alert message to all available phones
+void msgSend_PushAlert( char *dept, int alarm, int level );     // send Alert message to all available phones
 void msgSend_PushAccept( char *dept, int type );     // send Accept or complete message to all available phones
 
 #endif

@@ -19,19 +19,19 @@
 #include "strsub.h"
 #include "server.h"
 
-typedef struct
-{
-   char *match;       // token to match in HTML file
-   char **replace;    // pointer to string to replace with
-}replace_def_t;
-
 static char alarmStr[10];
 
 static char *barColor;
 static char *server;
 static char *deptName;
-static char *alarmNum;
+static char *alarmNum = alarmStr;
 static char *levelStr;
+
+typedef struct
+{
+   char *match;       // token to match in HTML file
+   char **replace;    // pointer to string to replace with
+}replace_def_t;
 
 replace_def_t replacements[] =
 {
@@ -46,7 +46,6 @@ replace_def_t replacements[] =
 
 void _msgBuild_buildMsg( char *outbuf, char *template, int maxLen );
 int _msgBuild_ReadTemplate( char *template_fname, char *buf );
-
 
 #define MAXFILE 2000            // This is the largest amount of data the phone will accept
 
@@ -85,7 +84,7 @@ int msgBuild_makeAlertMsg( char *template_fname, char *outbuf, int bufsize, char
    _msgBuild_buildMsg( outbuf, template, MAXFILE );
 
 //   printf( "%s\n", outbuf );
-   printf( "Message size: %ld\n", strlen( outbuf ) );
+   printf( "%s INFO Message size: %ld\n", __func__, strlen( outbuf ) );
    return 0;
 }
 
@@ -107,15 +106,8 @@ int msgBuild_makeAcceptMsg( char *template_fname, char *outbuf, int bufsize, cha
 
    _msgBuild_buildMsg( outbuf, template, MAXFILE );
 
-   // Create completed HTML output data
-//   if ( (len = snprintf( outbuf, bufsize, buf, dept, msg )) >= bufsize )
-//   {
-//      printf( "file \"%s\" is too long.  Can't be over %d bytes. Is: %d bytes\n", template_fname, MAXFILE, len );
-//      return -1;
-//   }
-
 //   printf( "%s\n", outbuf );
-   printf( "Message size: %ld\n", strlen( outbuf ) );
+   printf( "%s INFO Message size: %ld\n", __func__, strlen( outbuf ) );
    return 0;
 
 }

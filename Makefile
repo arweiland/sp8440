@@ -1,5 +1,5 @@
 
-SOURCES = main.c msgSend.c msgBuild.c msgXML.c server.c spRec.c cJSON.c strsub.c config.c jconfig.c
+SOURCES = main.c msgSend.c msgBuild.c msgXML.c server.c spRec.c cJSON.c strsub.c config.c jconfig.c logging.c
 OBJECTS = $(SOURCES:.c=.o)
 
 CC = gcc

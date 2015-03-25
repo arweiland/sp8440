@@ -1,7 +1,7 @@
 /** 
  *  @file   msgXML.c
  *  @author Ron Weiland, Indyme Solutions
- *  @date   3/13/15
+ *  @date   3/23/15
  *  @brief  Phone line registration parser
  * 
  * @section Description

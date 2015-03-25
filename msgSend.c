@@ -15,6 +15,7 @@
 #include "msgSend.h"
 #include "msgBuild.h"
 #include "spRec.h"
+#include "config.h"
 
 #define MAX_HTML_DATA 2000       // max size of HTML message to send
 
@@ -40,6 +41,8 @@ typedef struct
    char *msg;
 }curlThreadMsg_t;
 
+char *alert_template = NULL;           // alert template file name
+char *accept_template = NULL;          // accept template file name
 
 void _msgSend_PushMsgs( char *msg  );
 void *_msgSend_PushMsgThread( void *ip_addr );
@@ -54,12 +57,21 @@ int main( void )
 }
 #endif
 
-void msgSend_PushAlert( char *dept, int level )
+void msgSend_PushAlert( char *dept, int alarm, int level )
 {
    char msgBuf[ MAX_HTML_DATA ];             // message buffer to send
 
+   if ( alert_template == NULL )
+   {
+      if ( (alert_template = config_readStr( "phones", "alert_template", NULL )) == NULL )
+      {
+         printf( "%s ERROR Alert template file name not found in config!\n", __func__ );
+         return;
+      }
+   }
+
    // create the message to send
-   msgBuild_makeAlertMsg( "message.html", msgBuf, MAX_HTML_DATA, dept, 100, level );
+   msgBuild_makeAlertMsg( alert_template, msgBuf, MAX_HTML_DATA, dept, alarm, level );
    _msgSend_PushMsgs( msgBuf );
 }
 
@@ -68,8 +80,17 @@ void msgSend_PushAccept( char *dept, int type )
    char msgBuf[ MAX_HTML_DATA ];             // message buffer to send
    char *msg;
 
+   if ( accept_template == NULL )
+   {
+      if ( (accept_template = config_readStr( "phones", "accept_template", NULL )) == NULL )
+      {
+         printf( "%s ERROR accept template file name not found in config!\n", __func__ );
+         return;
+      }
+   }
+
    msg = (type == 0) ? "Request Accepted" : "Request Complete";
-   msgBuild_makeAcceptMsg( "accept.html", msgBuf, MAX_HTML_DATA, dept, msg );
+   msgBuild_makeAcceptMsg( accept_template, msgBuf, MAX_HTML_DATA, dept, msg );
    _msgSend_PushMsgs( msgBuf );
 }
 
@@ -97,7 +118,7 @@ void _msgSend_PushMsgs( char *msg )
    for(i=0; i< msgIndex; i++)
    {
       pthread_join(tid[i], NULL);
-      fprintf(stderr, "Thread %d terminated\n", i);
+//      fprintf(stderr, "Thread %d terminated\n", i);
    }
    printf( "Leaving %s\n", __func__ );
 

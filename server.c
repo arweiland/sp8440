@@ -92,7 +92,7 @@ void _server_post_handler( struct evhttp_request *req, void *state )
    evbuffer_copyout( inBuf, xmlData, len );
    xmlData[ len ] = '\0';
 
-   printf( "Post data length: %ld. Data:\n%s", len, xmlData );
+//   printf( "Post data length: %ld. Data:\n%s", len, xmlData );
 
    if ( (phone_reg = msgXML_parseRegistration( xmlData, len )) == NULL )
    {
@@ -100,11 +100,12 @@ void _server_post_handler( struct evhttp_request *req, void *state )
    }
    else
    {
+#if 0
       printf( "Phone IP: %s\n", phone_reg->phoneIP );
       printf( "Mac address: %s\n", phone_reg->MACAddress );
       printf( "Line Number: %s\n", phone_reg->LineNumber );
       printf( "Time Stamp: %s\n", phone_reg->TimeStamp );
-
+#endif
       printf( "%s: Saving new record\n", __func__ );
       spRec_AddRecord( phone_reg->phoneIP, phone_reg->MACAddress, atoi(phone_reg->LineNumber) );
    }
