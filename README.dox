@@ -37,5 +37,7 @@ whenever the system boots.
 @subsection config Configuration Module
 This modules (config.c) reads in configuration information from a Windows INI-type configuration file
 
+@subsection logging Logging Module
+This module (logging.c) handles module logging and log rotating with variable log levels
 @image html 8440.jpg
 */

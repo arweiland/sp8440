@@ -14,6 +14,9 @@
 
 static JConfig *cfgPtr;
 
+// If the following is true, enable some system test stuff (like log output to stderr)
+int log_to_stderr = 0;
+
 int config_init( char *cfgName )
 {
    FILE *fptr;
@@ -28,6 +31,9 @@ int config_init( char *cfgName )
 
    fclose( fptr );
    cfgPtr = jconfig_open( cfgName );      // open configuration file
+
+   // Check for system test mode
+   log_to_stderr = config_readInt( "general", "log_to_stderr", 0 );
 
    return 0;
 }

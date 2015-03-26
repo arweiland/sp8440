@@ -20,6 +20,7 @@
 #include "spRec.h"
 #include "cJSON.h"
 #include "config.h"
+#include "logging.h"
 
 int max_SPphones;                                // max phones allowed (from config)
 
@@ -33,7 +34,7 @@ void _spRec_EncodePhones( void );                // write phone records to JSON
 void _spRec_GetStr( cJSON *root, char *what, char *dest, int len );
 void _spRec_GetInt( cJSON *root, char *what, int *dest );
 
-static char *outname;                   // output file name
+static char *outfile;                   // output file name
 
 #if 0
 
@@ -63,16 +64,16 @@ int main( void )
 
 int spRec_Init( void )
 {   
-   if ( (outname = config_readStr( "phones", "records_file", NULL ) ) == NULL )
-   {
-      printf( "%s: ERROR: No records_file in config!\n", __func__ );
-      return 1;
-   }
+   int memsize;
+
+   outfile = config_readStr( "phones", "records_file", "phones.json" );
 
    // Get max number of phones from config, default to 50
    max_SPphones = config_readInt( "phones", "max_phones", 50 );
 
-   SPphones = (SPphone_record_t *)malloc( (max_SPphones + 1) * sizeof( SPphone_record_t ) );
+   memsize = (max_SPphones + 1) * sizeof( SPphone_record_t );
+
+   SPphones = (SPphone_record_t *)malloc( memsize );
    SPphones[ max_SPphones ].in_use = -1;     // sentinal node (end of array)
    _spRec_ParseFile();
 
@@ -94,22 +95,17 @@ void spRec_CheckStale( void )
    int dirty = 0;
 
    // get max last seen time from config
-   if ( (max_time = config_readInt( "phones", "max_last_seen", -1 )) == -1 )
-   {
-      printf( "%s: Warning: No \"max_last_seen\" in config!\n", __func__ );
-      return;
-   }
-
-   max_time *= 60;               // convert time to seconds
+   max_time = config_readInt( "phones", "max_last_seen", 60 );
    curtime = time(NULL);         // get current time
 
    while ( (sptr = spRec_GetNextRecord( sptr )) != NULL )
    {
-      if ( (curtime - sptr->last_seen) > max_time )
+      if ( (curtime - sptr->last_seen) > (max_time * 60) )
       {
          sptr->in_use = 0;       // remove this one
          dirty = 1;              // database changed
-         printf( "%s: Removing stale phone: %s\n", __func__, sptr->ip_addr );
+         PLog( INFO, "Removing %s, Not seen in %ld minutes\n", sptr->ip_addr, (long)max_time );
+         Log( DEBUG, "%s: Removing stale phone: %s. Not seen in %ld minutes\n", __func__, sptr->ip_addr, (long)max_time );
       }
    }
 
@@ -146,7 +142,7 @@ int spRec_AddRecord( char *ip_addr, char *mac, int line_num )
       if ( (same_mac && !same_ip) || (same_ip && !same_mac) )
       {
          sptr->in_use = 0;                            // remove existing
-         printf("%s: Removing old record for %s\n", __func__, ip_addr );
+         Log( DEBUG, "%s: Removing old record for %s\n", __func__, ip_addr );
       }
    }
 
@@ -154,7 +150,7 @@ int spRec_AddRecord( char *ip_addr, char *mac, int line_num )
    if ( (sptr = spRec_FindIP( ip_addr )) != NULL )
    {
       sptr->last_seen = time( NULL );                 // Record current time
-      printf( "%s: %s already in record, updating last_seen\n", __func__, ip_addr );
+      Log( DEBUG, "%s: %s already in record, updating last_seen\n", __func__, ip_addr );
    }
 
    // If new record, add it
@@ -168,7 +164,7 @@ int spRec_AddRecord( char *ip_addr, char *mac, int line_num )
 
       if ( sptr->in_use == -1 )
       {
-         printf( "%s: WARNING: Phone records are full!\n", __func__ );
+         Log( WARN, "%s: WARNING: Phone records are full!\n", __func__ );
          return -1;
       }
 
@@ -181,7 +177,8 @@ int spRec_AddRecord( char *ip_addr, char *mac, int line_num )
       sptr->line_number = line_num;                // line number
       sptr->last_seen = time( NULL );              // Record current time
       sptr->in_use = 1;                            // now in use
-      printf( "%s: Created new record for %s\n", __func__, ip_addr );
+      Log( INFO, "%s: Created new record for %s\n", __func__, ip_addr );
+      PLog( INFO, "Created new record for %s, line %d\n", ip_addr, line_num );
    }
 
    _spRec_EncodePhones();                          // Write new file
@@ -281,9 +278,9 @@ void _spRec_EncodePhones(void)
    FILE *fptr;
    SPphone_record_t *SPptr;
 
-   if ( (fptr = fopen( outname, "w" )) == NULL )
+   if ( (fptr = fopen( outfile, "w" )) == NULL )
    {
-      printf( "Can't open file \"%s\" for writing: %s\n", outname, strerror(errno) );
+      Log( ERROR, "%s: Can't open file \"%s\" for writing: %s\n", __func__, outfile, strerror(errno) );
       return;
    }
 
@@ -306,8 +303,7 @@ void _spRec_EncodePhones(void)
 
    fprintf( fptr, "]}\n");
    fclose( fptr );
-   printf( "%s: INFO.  Wrote new records file\n", __func__ );
-
+   Log( DEBUG, "%s. Wrote records file\n", __func__ );
 }
 
 /*-----------------( _spRec_ParseFile )-------------------
@@ -323,9 +319,9 @@ int _spRec_ParseFile( void )
    long fsize;
    char *buffer;
 
-   if ( (fptr = fopen( outname, "r" )) == NULL )
+   if ( (fptr = fopen( outfile, "r" )) == NULL )
    {
-      printf( "Can't open file \"%s\"\n", outname );
+      Log( ERROR, "%s: Can't open file \"%s\"\n", __func__, outfile );
       return -1;
    }
 
@@ -336,7 +332,7 @@ int _spRec_ParseFile( void )
 
    if ( (buffer = (char *)malloc( fsize )) == NULL )
    {
-      printf( "spRecInit: Can't malloc buffer!\n" );
+      Log( ERROR, "%s: Can't malloc buffer!\n", __func__ );
       fclose( fptr );
       return -1;
    }
@@ -369,7 +365,7 @@ void _spRec_ParsePhones( char *data )
    cJSON *item = cJSON_GetObjectItem( request_body, "phones" );
    if ( item == NULL )
    {
-      printf( "Can't find phones\n" );
+      Log( ERROR, "%s: Can't find phones in %s!\n", __func__, outfile );
       return;
    }
 
@@ -378,7 +374,7 @@ void _spRec_ParsePhones( char *data )
       nRecords = max_SPphones;         // limit to size of records
    }
 
-   printf( "%d phone records found\n", nRecords);
+   Log( DEBUG, "%s: %d phone records found\n", __func__, nRecords);
 
    for (i = 0, SPptr = SPphones ; i < nRecords ; i++, SPptr++)
    {
@@ -387,8 +383,8 @@ void _spRec_ParsePhones( char *data )
       _spRec_GetStr( subitem, "ip_addr", SPptr->ip_addr, sizeof(SPptr->ip_addr) );
       _spRec_GetInt( subitem, "line_number", &(SPptr->line_number) );
       _spRec_GetInt( subitem, "last_seen", &(SPptr->last_seen) );
-      printf( "phone %d. MAC: %s,  ip_addr: %s, line_number: %d, last_seen: %d\n", i+1, 
-              SPptr->mac, SPptr->ip_addr, SPptr->line_number, SPptr->last_seen );
+      Log( DEBUG, "%s: phone %d. MAC: %s,  ip_addr: %s, line_number: %d, last_seen: %d\n", 
+           __func__, i+1, SPptr->mac, SPptr->ip_addr, SPptr->line_number, SPptr->last_seen );
       SPptr->in_use = 1;
    }
    cJSON_Delete( request_body );

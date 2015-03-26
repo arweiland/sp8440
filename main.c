@@ -24,9 +24,12 @@
 
 char *cfgFile = "sp8440.cfg";
 
+static pthread_t tid;
+
+void wait( int seconds );
+
 int main( void )
 {
-   pthread_t tid;
 
    if ( config_init( cfgFile ) != 0 )
    {
@@ -43,19 +46,37 @@ int main( void )
 
    server_Init( &tid );
    sleep(1);
-   msgSend_PushAlert( "Electrical", 100, 2);
 
-   while( 1 )
+   while(1)
    {
-      sleep(1);                     // sleep for a second
-      if ( pthread_kill( tid, 0 ) != 0 )    // check server thread
+      // Wait until there is at least one phone to output to
+      while ( spRec_GetNextRecord( NULL ) == NULL )
       {
-         return 0;                          // server thread died
+         sleep( 1 );
       }
-      spRec_CheckStale();                   // check for "stale" phones
+      msgSend_PushAlert( "Electrical", 100, 0);
+      wait( 30 );
+      msgSend_PushAlert( "Electrical", 100, 1);
+      wait( 30 );
+      msgSend_PushAlert( "Electrical", 100, 2);
+      wait( 30 );
    }
+
    // join on web server thread
 //   pthread_join( tid, NULL );
    return 0;
 }
 
+void wait( int seconds )
+{
+   int i;
+   for( i = 0; i < seconds; i++ )
+   {
+      sleep(1);
+      if ( pthread_kill( tid, 0 ) != 0 )    // check server thread
+      {
+         _exit(1);
+      }
+      spRec_CheckStale();    // check for "stale" phones
+   }
+}

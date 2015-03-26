@@ -6,7 +6,7 @@ CC = gcc
 #CC = bfin-linux-uclibc-gcc
 
 CFLAGS = -Wall -ggdb -D_GNU_SOURCE 
-LDFLAGS = -lcurl -levent -lpthread -lm -lexpat
+LDFLAGS = -lcurl -levent -lexpat -lpthread -lm
 
 #%.o : %.c
 #	$(CC) $(CFLAGS) -c $<

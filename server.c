@@ -38,6 +38,7 @@
 #include "msgXML.h"
 #include "spRec.h"
 #include "config.h"
+#include "logging.h"
 
 /*---- internal function prototypes ---*/
 
@@ -106,7 +107,7 @@ void _server_post_handler( struct evhttp_request *req, void *state )
       printf( "Line Number: %s\n", phone_reg->LineNumber );
       printf( "Time Stamp: %s\n", phone_reg->TimeStamp );
 #endif
-      printf( "%s: Saving new record\n", __func__ );
+      PLog( DEBUG, "Got registration from %s, Line Number %s\n", phone_reg->phoneIP, phone_reg->LineNumber );
       spRec_AddRecord( phone_reg->phoneIP, phone_reg->MACAddress, atoi(phone_reg->LineNumber) );
    }
 
@@ -125,42 +126,33 @@ void activate_handler(struct evhttp_request *req, void *state)
 
    evhttp_parse_query( req->uri, &headers );
 
-   if ( (dept = evhttp_find_header( &headers, "dept" )) != NULL )
+   if ( (dept = evhttp_find_header( &headers, "dept" )) == NULL )
    {
-      printf( "Department: %s\n", dept );
+      Log( WARN, "%s: Department not found\n", __func__ );
    }
-   else
+
+   if ( (alarm = evhttp_find_header( &headers, "alarm" )) == NULL )
    {
-      printf( "Department not found\n" );
+      Log( WARN, "%s: Alarm Number not found\n", __func__ );
    }
 
    if ( (val = evhttp_find_header( &headers, "response" )) != NULL )
    {
-      printf( "Action: %s\n", val );
       if (strcasestr( val, "ack" ))
       {
-         printf( "%s Acknowledged\n", req->remote_host );
-         msgSend_PushAccept( (char *)dept, MSGSEND_ACCEPT );
+         PLog( NOTICE, "Alarm %s accepted by %s\n", alarm, req->remote_host );
+         msgSend_PushAccept( (char *)dept, MSGSEND_ACCEPT, req->remote_host );
       }
       else if (strcasestr( val, "decline" ))
       {
-         printf( "%s Declined\n", req->remote_host );
+         PLog( NOTICE, "Alarm %s declined by %s\n", alarm, req->remote_host );
       }
+      Log( WARN, "%s: Unknown action type: %s\n", __func__, val );
    }
    else
    {
-      printf( "Action not found\n" );
+      Log( WARN, "%s: No response found: %s\n", __func__, val );
    }
-
-   if ( (alarm = evhttp_find_header( &headers, "alarm" )) != NULL )
-   {
-      printf( "Alarm: %s\n", alarm );
-   }
-   else
-   {
-      printf( "Alarm not found\n" );
-   }
-
    evhttp_send_reply(req, HTTP_OK, "OK", NULL);
 }
 
@@ -171,24 +163,13 @@ void _server_generic_handler(struct evhttp_request *req, void *state)
    char *str;
    const char *uri;
    int cmd;
-//    struct evhttp_uri *parsed;
-//    const char *path;
-//    char *decoded_path;
 
    uri = evhttp_request_get_uri(req);         // Get full URI of request
    cmd = evhttp_request_get_command(req);     // Get command type (GET, POST, etc)
    buf = evbuffer_new();                      // create response buffer
 
-   printf( "Command type: %s\n", _server_getCmdTypeStr( cmd ) );
-   printf( "Received request from %s: URI: %s\n", req->remote_host, uri );
-
-#if 0
-   str = evhttp_decode_uri( evhttp_request_get_uri(req) );
-   printf( "Decoded URI:  %s\n", str );
-#else
+   Log( DEBUG, "%s: Command type: %s from: %s URI: %s\n", __func__, _server_getCmdTypeStr( cmd ), req->remote_host, uri );
    str = req->uri;
-#endif
-
 
    if ( strcasestr( str, ".wav" ) )
    {
@@ -200,52 +181,7 @@ void _server_generic_handler(struct evhttp_request *req, void *state)
       evhttp_send_reply(req, HTTP_OK, "OK", buf);
    }
 
-#if 0
-   free( str );
-#endif
-
-/*
-    parsed = evhttp_uri_parse( uri );
-    if (!parsed)
-    {
-       printf( "Parsed: Not a good URI\n" );
-    }
-
-    path = evhttp_uri_get_path( parsed );
-    if (!path)
-    {
-       printf( "No path.  Using \"\\\"\n" );
-       path = "/";
-    }
-
-    decoded_path = evhttp_uridecode(path, 0, NULL);
-    if (decoded_path == NULL)
-    {
-       printf( "Decoded path is NULL\n" );
-    }
-    else
-    {
-       printf( "Decoded path: %s\n", decoded_path );
-    }
-
-    if(!buf)
-    {
-        puts("failed to create response buffer \n");
-        return;
-    }
-
-    if( parsed)
-    {
-       evhttp_uri_free( parsed );
-    }
-    if ( decoded_path )
-    {
-       free(decoded_path);
-    }
-*/
-
     evbuffer_free(buf);
-    printf( "\n");
 }
 
 void *_server_DispatchThread( void *arg )
@@ -267,7 +203,7 @@ void *_server_DispatchThread( void *arg )
 
    if(!http_server)
    {
-      printf( "%s: Couldn't get web server base!\n", __func__ );
+      Log( ERROR, "%s: Couldn't get web server base!\n", __func__ );
       return NULL;
    }
 
@@ -275,7 +211,7 @@ void *_server_DispatchThread( void *arg )
    if(ret!=0)
    {
       errStr = strerror( errno );
-      printf( "%s: Bind failed!: %s\n", __func__, errStr );
+      Log( ERROR, "%s: Bind failed!: %s\n", __func__, errStr );
       return NULL;
    }
 
@@ -287,17 +223,17 @@ void *_server_DispatchThread( void *arg )
    evhttp_set_cb( http_server, "/", _server_post_handler, NULL );
    evhttp_set_gencb(http_server, _server_generic_handler, NULL);
 
-   printf("http server start OK! \n");
+   Log( INFO, "%s: Web server start OK! \n", __func__ );
+   printf("%s: Web server start OK \n", __func__ );
 
    // The following is a blocking call
    event_base_dispatch(base);
 
    evhttp_free(http_server);
-   printf( "server: Exited event_base_dispatch!\n" );
+   Log( ERROR, "%s: Exited event_base_dispatch!\n", __func__ );
 
    return NULL;
 }
-
 
 
 char *_server_getCmdTypeStr( int type )
@@ -342,13 +278,12 @@ void _server_sendAudio( char *rootDir, char *uri, struct evhttp_request *req )
    sprintf( fname, "%s%s", rootDir, uri );
    if ( (fd = open( fname, O_RDONLY )) == -1 )    // open the file 
    {
-      printf( "Can't open file %s: %s\n", fname, strerror( errno ));
+      Log( WARN, "%s: Can't open file %s: %s\n", __func__, fname, strerror( errno ));
       evhttp_send_error(req, 404, "File not found");
       return;
    }
 
    fstat(fd, &st);
-   printf( "File size: %ld\n", st.st_size );
 
    // Get the headers for the response
    headers = evhttp_request_get_output_headers(req);
@@ -370,8 +305,9 @@ void _server_getOurIP( void )
 {
     int fd;
     struct ifreq ifr;
-     
-    char iface[] = "eth0";
+    char *iface;
+
+    iface = config_readStr( "general", "network_interface", "eth0" );
      
     fd = socket(AF_INET, SOCK_DGRAM, 0);
  
@@ -386,7 +322,7 @@ void _server_getOurIP( void )
      
     //display ip
     strncpy( serverIpAddress,  inet_ntoa(( (struct sockaddr_in *)&ifr.ifr_addr )->sin_addr), sizeof( serverIpAddress) );
-    printf("IP address of %s - %s\n" ,iface, serverIpAddress );
-    close(fd);
 
+    Log( DEBUG, "%s: Using interface \"%s\", IP = %s\n", __func__, iface, serverIpAddress );
+    close(fd);
 }

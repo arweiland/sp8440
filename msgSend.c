@@ -11,6 +11,7 @@
 
 #include <curl/curl.h>
 #include <pthread.h>
+#include <string.h>
 
 #include "msgSend.h"
 #include "msgBuild.h"
@@ -44,7 +45,7 @@ typedef struct
 char *alert_template = NULL;           // alert template file name
 char *accept_template = NULL;          // accept template file name
 
-void _msgSend_PushMsgs( char *msg  );
+void _msgSend_PushMsgs( char *msg, char *special_ip, char *specal_msg );
 void *_msgSend_PushMsgThread( void *ip_addr );
 size_t _msgSend_WriteCallback( void *buffer, size_t size, size_t nmemb, void *data );
 
@@ -63,7 +64,7 @@ void msgSend_PushAlert( char *dept, int alarm, int level )
 
    if ( alert_template == NULL )
    {
-      if ( (alert_template = config_readStr( "phones", "alert_template", NULL )) == NULL )
+      if ( (alert_template = config_readStr( "phones", "alert_template", "alert" )) == NULL )
       {
          printf( "%s ERROR Alert template file name not found in config!\n", __func__ );
          return;
@@ -72,17 +73,19 @@ void msgSend_PushAlert( char *dept, int alarm, int level )
 
    // create the message to send
    msgBuild_makeAlertMsg( alert_template, msgBuf, MAX_HTML_DATA, dept, alarm, level );
-   _msgSend_PushMsgs( msgBuf );
+   _msgSend_PushMsgs( msgBuf, NULL, NULL );
 }
 
-void msgSend_PushAccept( char *dept, int type )
+void msgSend_PushAccept( char *dept, int type, char *accept_ip )
 {
    char msgBuf[ MAX_HTML_DATA ];             // message buffer to send
+   char msgBuf2[ MAX_HTML_DATA ];            // Special buffer to send
+
    char *msg;
 
    if ( accept_template == NULL )
    {
-      if ( (accept_template = config_readStr( "phones", "accept_template", NULL )) == NULL )
+      if ( (accept_template = config_readStr( "phones", "accept_template", "accept" )) == NULL )
       {
          printf( "%s ERROR accept template file name not found in config!\n", __func__ );
          return;
@@ -91,11 +94,12 @@ void msgSend_PushAccept( char *dept, int type )
 
    msg = (type == 0) ? "Request Accepted" : "Request Complete";
    msgBuild_makeAcceptMsg( accept_template, msgBuf, MAX_HTML_DATA, dept, msg );
-   _msgSend_PushMsgs( msgBuf );
+   msgBuild_makeAcceptMsg( accept_template, msgBuf2, MAX_HTML_DATA, dept, "You accepted" );
+   _msgSend_PushMsgs( msgBuf, accept_ip, msgBuf2 );
 }
 
 
-void _msgSend_PushMsgs( char *msg )
+void _msgSend_PushMsgs( char *msg, char *special_ip, char *special_msg )
 {
    int i;
    pthread_t tid[ MAX_SPPHONES ];            // array of thread ids
@@ -109,7 +113,16 @@ void _msgSend_PushMsgs( char *msg )
    while( (phone = spRec_GetNextRecord( phone )) != NULL )
    {
       msgs[ msgIndex ].ip_addr = phone->ip_addr;   // IP address of phone to send to
-      msgs[ msgIndex ].msg = msg;           // message pointer
+
+      // check if special message for this IP
+      if ( (special_ip != NULL) && (strncmp( special_ip, phone->ip_addr, strlen( phone->ip_addr)) == 0 ))
+      {
+         msgs[ msgIndex ].msg = special_msg;       // use special message
+      }
+      else
+      {
+         msgs[ msgIndex ].msg = msg;               // message pointer
+      }
       pthread_create( &tid[ msgIndex ], NULL, _msgSend_PushMsgThread, (void *)&msgs[ msgIndex ] );
       msgIndex++;
    }
@@ -152,7 +165,6 @@ void *_msgSend_PushMsgThread( void *msg )
 
    /*--- Unneeded operations ---*/
    // curl_easy_setopt(hnd, CURLOPT_ERRORBUFFER, errorBuf );  // Set error buffer
-   // curl_easy_setopt(hnd, CURLOPT_SSH_KNOWNHOSTS, "/home/rweiland/.ssh/known_hosts");
    // curl_easy_setopt(hnd, CURLOPT_NOPROGRESS, 1L);
    // curl_easy_setopt(hnd, CURLOPT_POSTFIELDSIZE_LARGE, (curl_off_t)-1);
    // curl_easy_setopt(hnd, CURLOPT_MAXREDIRS, 50L);
