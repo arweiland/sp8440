@@ -17,6 +17,7 @@
 #include "msgBuild.h"
 #include "spRec.h"
 #include "config.h"
+#include "logging.h"
 
 #define MAX_HTML_DATA 2000       // max size of HTML message to send
 
@@ -180,11 +181,11 @@ void *_msgSend_PushMsgThread( void *msg )
       curl_easy_getinfo(hnd, CURLINFO_RESPONSE_CODE, &httpCode );       // Get the HTTP response code
       if ( httpCode == 200 )
       {
-         printf( "Sent successfully to \"%s\"\n", msgData->ip_addr );
+         PLog( INFO, "%s Msg push successful to \"%s\"\n", __func__, msgData->ip_addr );
       }
       else
       {
-         printf( "\nSend Failed on \"%s\". Response code: %ld\n\n", msgData->ip_addr, httpCode );
+         PLog( WARN, "%s Send Failed on \"%s\". Response code: %ld\n\n", __func__, msgData->ip_addr, httpCode );
       }
    }
 

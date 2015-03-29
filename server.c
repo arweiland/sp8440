@@ -39,9 +39,13 @@
 #include "spRec.h"
 #include "config.h"
 #include "logging.h"
+#include "startup.h"
 
 /*---- internal function prototypes ---*/
 
+void _server_activate_handler(struct evhttp_request *req, void *state);
+void _server_post_handler( struct evhttp_request *req, void *state );
+void _server_generic_handler(struct evhttp_request *req, void *state);
 void *_server_DispatchThread( void *arg );
 char *_server_getCmdTypeStr( int type );
 void _server_sendAudio( char *rootDir, char *uri, struct evhttp_request *req );
@@ -59,6 +63,60 @@ void server_Init( pthread_t *tid )
    _server_getOurIP();
    // Start the web server thread
    pthread_create( tid, NULL, _server_DispatchThread, NULL );
+}
+
+
+void *_server_DispatchThread( void *arg )
+{
+   char *errStr;
+
+   short          http_port;
+   char          *http_addr = INADDR_ANY;
+   char portStr[10];
+
+   http_port = (short)config_readInt( "general", "port", 8090 );
+
+   struct event_base *base = event_base_new();
+   struct evhttp *http_server = evhttp_new( base );
+
+   // add port to server address for other modules
+   sprintf( portStr, ":%d", http_port );
+   strcat( serverIpAddress, portStr );
+
+   if(!http_server)
+   {
+      Log( ERROR, "%s: Couldn't get web server base!\n", __func__ );
+      MainSignal( -1, "Couldn't get web server base!" );
+   }
+
+   int ret = evhttp_bind_socket(http_server,http_addr,http_port);
+   if(ret!=0)
+   {
+      errStr = strerror( errno );
+      Log( ERROR, "%s: Bind failed!: %s\n", __func__, errStr );
+      MainSignal( -1, "Bind failed!" );
+      return NULL;
+   }
+
+   /* Set a callback for requests to "/specific". */
+   /* evhttp_set_cb(httpd, "/specific", another_handler, NULL); */
+   /* Set a callback for all other requests. */
+
+   evhttp_set_cb( http_server, "/i_activate", _server_activate_handler, NULL );
+   evhttp_set_cb( http_server, "/", _server_post_handler, NULL );
+   evhttp_set_gencb(http_server, _server_generic_handler, NULL);
+
+   Log( INFO, "%s: Web server start OK! \n", __func__ );
+   printf("%s: Web server start OK \n", __func__ );
+   MainSignal( 0, "OK" );
+
+   // The following is a blocking call
+   event_base_dispatch(base);
+
+   evhttp_free(http_server);
+   Log( ERROR, "%s: Exited event_base_dispatch!\n", __func__ );
+
+   return NULL;
 }
 
 char *server_GetOurAddress( void )
@@ -115,7 +173,7 @@ void _server_post_handler( struct evhttp_request *req, void *state )
 }
 
 
-void activate_handler(struct evhttp_request *req, void *state)
+void _server_activate_handler(struct evhttp_request *req, void *state)
 {
    struct evkeyvalq headers;
    const char *val;
@@ -147,7 +205,10 @@ void activate_handler(struct evhttp_request *req, void *state)
       {
          PLog( NOTICE, "Alarm %s declined by %s\n", alarm, req->remote_host );
       }
-      Log( WARN, "%s: Unknown action type: %s\n", __func__, val );
+      else
+      {
+         Log( WARN, "%s: Unknown action type: %s\n", __func__, val );
+      }
    }
    else
    {
@@ -182,57 +243,6 @@ void _server_generic_handler(struct evhttp_request *req, void *state)
    }
 
     evbuffer_free(buf);
-}
-
-void *_server_DispatchThread( void *arg )
-{
-   char *errStr;
-
-   short          http_port;
-   char          *http_addr = INADDR_ANY;
-   char portStr[10];
-
-   http_port = (short)config_readInt( "general", "port", 8090 );
-
-   struct event_base *base = event_base_new();
-   struct evhttp *http_server = evhttp_new( base );
-
-   // add port to server address for other modules
-   sprintf( portStr, ":%d", http_port );
-   strcat( serverIpAddress, portStr );
-
-   if(!http_server)
-   {
-      Log( ERROR, "%s: Couldn't get web server base!\n", __func__ );
-      return NULL;
-   }
-
-   int ret = evhttp_bind_socket(http_server,http_addr,http_port);
-   if(ret!=0)
-   {
-      errStr = strerror( errno );
-      Log( ERROR, "%s: Bind failed!: %s\n", __func__, errStr );
-      return NULL;
-   }
-
-   /* Set a callback for requests to "/specific". */
-   /* evhttp_set_cb(httpd, "/specific", another_handler, NULL); */
-   /* Set a callback for all other requests. */
-
-   evhttp_set_cb( http_server, "/i_activate", activate_handler, NULL );
-   evhttp_set_cb( http_server, "/", _server_post_handler, NULL );
-   evhttp_set_gencb(http_server, _server_generic_handler, NULL);
-
-   Log( INFO, "%s: Web server start OK! \n", __func__ );
-   printf("%s: Web server start OK \n", __func__ );
-
-   // The following is a blocking call
-   event_base_dispatch(base);
-
-   evhttp_free(http_server);
-   Log( ERROR, "%s: Exited event_base_dispatch!\n", __func__ );
-
-   return NULL;
 }
 
 

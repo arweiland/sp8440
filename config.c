@@ -50,10 +50,12 @@ int config_readInt( char *group, char *var, int def )
 
 char *config_readStr( char *group, char *var, char *def )
 {
+   char *str;
    if ( cfgPtr == NULL )
    {
       return def;
    }
-   return jconfig_read_string( cfgPtr, group, var, def );
+   str = jconfig_read_string( cfgPtr, group, var, def );
+   return str;
 }
 

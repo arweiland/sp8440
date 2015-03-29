@@ -1,82 +1,60 @@
-/** 
- *  @file   main.c
- *  @author Ron Weiland, Indyme Solutions
- *  @date   3/13/15
- *  @brief  Plugin main module for testing
- *
- *  @section Description 
- * 
- * Initializes all modules.\n
- * Starts web server and waits until it dies
- */
-
-
 #include <stdio.h>
-#include <pthread.h>
 #include <unistd.h>
-#include <signal.h>
+#include <string.h>
 
-#include "spRec.h"
-#include "server.h"
-#include "msgSend.h"
-#include "config.h"
-#include "logging.h"
+#include "startup.h"
+#include "plugins.h"
 
-char *cfgFile = "sp8440.cfg";
-
-static pthread_t tid;
-
-void wait( int seconds );
+int chk_sp8440Status( void );
 
 int main( void )
 {
+#ifdef PLUGIN
+#include "plugins.h"
+   int ret;
 
-   if ( config_init( cfgFile ) != 0 )
+   printf( "Calling plugins_init\n" );
+   // start via the plugins module
+   plugins_init();
+   printf( "Returned from plugins_init\n" );
+   if ( (ret = chk_sp8440Status()) != PLUGIN_RUNNING )
    {
-      printf( "Can't open config file \"%s\"!  Terminating.\n", cfgFile );
-      return 1;
+      printf( "%s: Plugin failed!  Code: %d\n", __func__, ret );
+      return -1;
+   }
+   else
+   {
+      printf( "8440 Pluin started successfully\n" );
    }
 
-   Log( INFO, "%s: Starting\n", __func__ );
+#else
+   // start directy
+   printf( "Starting the module directly\n" );
+   sp8440_Start();
+#endif
 
-   if ( spRec_Init() )
+   while( 1 )
    {
-      return 1;
+      sleep(1);
    }
-
-   server_Init( &tid );
-   sleep(1);
-
-   while(1)
-   {
-      // Wait until there is at least one phone to output to
-      while ( spRec_GetNextRecord( NULL ) == NULL )
-      {
-         sleep( 1 );
-      }
-      msgSend_PushAlert( "Electrical", 100, 0);
-      wait( 30 );
-      msgSend_PushAlert( "Electrical", 100, 1);
-      wait( 30 );
-      msgSend_PushAlert( "Electrical", 100, 2);
-      wait( 30 );
-   }
-
-   // join on web server thread
-//   pthread_join( tid, NULL );
    return 0;
 }
 
-void wait( int seconds )
+/*---------- try to get the status of the SP8440 plugin --------*/
+
+int chk_sp8440Status( void )
 {
+   plugin_t *pptr;
    int i;
-   for( i = 0; i < seconds; i++ )
+
+   for ( i = 0, pptr = plugin_stats; i < MAX_PLUGINS; i++, pptr++ )
    {
-      sleep(1);
-      if ( pthread_kill( tid, 0 ) != 0 )    // check server thread
+      if ( strstr( pptr->descr, "SP8440" ) != NULL )
       {
-         _exit(1);
+         return pptr->status;
       }
-      spRec_CheckStale();    // check for "stale" phones
    }
+
+   return -1;           // not found
 }
+

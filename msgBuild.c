@@ -18,13 +18,20 @@
 #include "msgBuild.h"
 #include "strsub.h"
 #include "server.h"
+#include "config.h"
 
-static char alarmStr[10];
+static char alarmStr[10];      // Alarm number string
+static char audio1Str[20];     // name of audio file 1
+static char audio2Str[20];     // name of audio file 2
+static char audio3Str[20];     // name of audio file 3
 
 static char *barColor;
 static char *server;
 static char *deptName;
 static char *alarmNum = alarmStr;
+static char *audio1 = audio1Str;
+static char *audio2 = audio2Str;
+static char *audio3 = audio3Str;
 static char *levelStr;
 
 typedef struct
@@ -40,12 +47,16 @@ replace_def_t replacements[] =
    {"[DEPT]",   &deptName },         // department name
    {"[ALARM]",  &alarmNum },         // alarm number
    {"[LEVEL]",  &levelStr },         // string, based on escalation level
+   {"[AUDIO1]", &audio1 },           // First audio file
+   {"[AUDIO2]", &audio2 },           // Second audio file
+   {"[AUDIO3]", &audio3 },           // Third audio file
    {NULL,NULL}                       // end of substituion list
 };
 
 
 void _msgBuild_buildMsg( char *outbuf, char *template, int maxLen );
 int _msgBuild_ReadTemplate( char *template_fname, char *buf );
+void _msgBuild_ChkAudio( void );
 
 #define MAXFILE 2000            // This is the largest amount of data the phone will accept
 
@@ -121,6 +132,8 @@ void _msgBuild_buildMsg( char *outbuf, char *template, int maxLen )
    int first = 1;
    replace_def_t *rptr = replacements;
 
+   _msgBuild_ChkAudio();                // Make sure audio file names have been read from config
+
    while( rptr->match != NULL )
    {
       strsub_Replace( dest, orig, rptr->match, *rptr->replace );     // replace matches in message
@@ -142,7 +155,7 @@ void _msgBuild_buildMsg( char *outbuf, char *template, int maxLen )
    }
 }
 
-
+// Read in the given template file
 
 int _msgBuild_ReadTemplate( char *template_fname, char *buf )
 {
@@ -167,4 +180,30 @@ int _msgBuild_ReadTemplate( char *template_fname, char *buf )
    fclose( fptr );
 
    return 0;
+}
+
+
+// Check the audio messages from the config file
+
+void _msgBuild_ChkAudio( void )
+{
+   char *str;
+
+   if ( *audio1Str == '\0' )     // Not read from config yet?
+   {
+      str = config_readStr( "phones", "audio1", "audio1.wav" );
+      strncpy( audio1Str, str, sizeof( audio1Str ) );
+   }
+
+   if ( *audio2Str == '\0' )     // Not read from config yet?
+   {
+      str = config_readStr( "phones", "audio2", "audio2.wav" );
+      strncpy( audio2Str, str, sizeof( audio2Str ) );
+   }
+
+   if ( *audio3Str == '\0' )     // Not read from config yet?
+   {
+      str = config_readStr( "phones", "audio3", "audio3.wav" );
+      strncpy( audio3Str, str, sizeof( audio3Str ) );
+   }
 }

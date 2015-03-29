@@ -1,20 +1,35 @@
 
-SOURCES = main.c msgSend.c msgBuild.c msgXML.c server.c spRec.c cJSON.c strsub.c config.c jconfig.c logging.c
+SOURCES = main.c startup.c plugins.c msgSend.c msgBuild.c msgXML.c server.c spRec.c cJSON.c strsub.c config.c jconfig.c logging.c
 OBJECTS = $(SOURCES:.c=.o)
 
 CC = gcc
 #CC = bfin-linux-uclibc-gcc
 
-CFLAGS = -Wall -ggdb -D_GNU_SOURCE 
-LDFLAGS = -lcurl -levent -lexpat -lpthread -lm
+#If the following is defined, build the plug-in version of the code
+PLUGIN = 1
 
-#%.o : %.c
-#	$(CC) $(CFLAGS) -c $<
+ifdef PLUGIN
+TARGET = main_plugin
+CFLAGS = -Wall -ggdb -D_GNU_SOURCE -DPLUGIN
+PFLAGS = -shared -fPIC -export-dynamic
+else
+TARGET = main
+CFLAGS = -Wall -ggdb -D_GNU_SOURCE
+endif
+LDFLAGS = -lcurl -levent -lexpat -lm -lpthread -ldl
 
-all:	main
+
+%.o : %.c
+	$(CC) $(CFLAGS) $(PFLAGS) -c $<
+
+all:	$(TARGET)
+
+main_plugin: $(OBJECTS) plugins.o
+	$(CC) $(CFLAGS) $(PFLAGS) $(OBJECTS)  -o sp8440.so $(LDFLAGS)
+	$(CC) $(CFLAGS)  main.o plugins.o  -o main_plugin $(LDFLAGS) -ldl
 
 main: 	$(OBJECTS)
-	$(CC) $(CFLAGS) $(OBJECTS) -o main $(LDFLAGS)
+	$(CC) $(CFLAGS1) $(OBJECTS) -o main $(LDFLAGS)
 
 msgSend:  msgSend.o msgBuild.o spRec.o cJSON.o
 	$(CC) $(CFLAGS) msgSend.o msgBuild.o spRec.o cJSON.o -o msgSend $(LDFLAGS)
@@ -26,7 +41,7 @@ spRec:	spRec.o cJSON.o
 	$(CC) $(CFLAGS) spRec.o cJSON.o  -o spRec -lm
 
 clean:
-	rm -f *.o main msgSend server spRec
+	rm -f *.o main main_plugin msgSend server spRec
 
 
 dep:

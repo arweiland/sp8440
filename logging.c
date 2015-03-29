@@ -13,6 +13,7 @@
 #include <stdarg.h>
 #include <time.h>
 #include <string.h>
+#include <pthread.h>
 
 #include "logging.h"
 #include "config.h"
@@ -28,6 +29,8 @@ static int phonelog_rotate;               // How many logs to rotate out
 static int phonelog_log_size;             // size of one log
 static char phonelog_file_path[100];      // name / path of syslog
 
+static pthread_mutex_t LogMutex;          // Thread synchronization for system logs
+static pthread_mutex_t PLogMutex;         // Thread synchronization for phone logs
 
 static char *lev_str[] =
 {
@@ -59,7 +62,7 @@ static char *lev_str[] =
 #define SP8440_LOG_FILE  "spSystem"        // name of system log file, without extent
 #define PHONES_LOG_FILE  "sp8440"          // name of phone log file, without extent
 
-static void _Log_ChkRotate( char *fpath, int max_size );
+static void _Log_ChkRotate( char *fpath, int max_size, int max_files );
 static void _Log_rotate( char *fpath, int max_files );
 
 /*---------  These would normally come from CLX's filesubs.c  ------------*/
@@ -103,7 +106,7 @@ void PLog( int level, char *format, ... )
    char timeStr[100];
    char *log_level_str;
    char sname[100];
-   struct tm *tmptr;
+   struct tm tmptr;
 
    va_start( msg, format );
 
@@ -124,8 +127,8 @@ void PLog( int level, char *format, ... )
 
    // Get current time / date string
    curtime = time( NULL );           // Get current time
-   tmptr = localtime( &curtime );
-   strftime( timeStr, sizeof(timeStr), "%m/%d/%y %H:%M:%S", tmptr );
+   localtime_r( &curtime, &tmptr );
+   strftime( timeStr, sizeof(timeStr), "%m/%d/%y %H:%M:%S", &tmptr );
 
    // Get new log to output
    size = vsnprintf( buffer, LOGF_BUF_SIZE, format, msg );
@@ -133,6 +136,8 @@ void PLog( int level, char *format, ... )
    {
       buffer[ LOGF_BUF_SIZE-1 ] = '\0';
    }
+
+   pthread_mutex_lock( &PLogMutex );              // only one thread at a time
 
    if ( phonelog_level >= level )
    {
@@ -149,10 +154,12 @@ void PLog( int level, char *format, ... )
             fclose( fptr );
 
             // see if time to rotate the log file
-            _Log_ChkRotate( phonelog_file_path, phonelog_log_size * 1000);
+            _Log_ChkRotate( phonelog_file_path, phonelog_log_size * 1000, phonelog_rotate );
          }
       }
    }
+
+   pthread_mutex_unlock( &PLogMutex );
 }
 
 
@@ -176,7 +183,8 @@ void Log( int level, char *format, ... )
    char timeStr[100];
    char *log_level_str;
    char sname[100];
-   struct tm *tmptr;
+   struct tm tmptr;
+
 
    va_start( msg, format );
 
@@ -197,8 +205,8 @@ void Log( int level, char *format, ... )
 
    // Get current time / date string
    curtime = time( NULL );           // Get current time
-   tmptr = localtime( &curtime );
-   strftime( timeStr, sizeof(timeStr), "%m/%d/%y %H:%M:%S", tmptr );
+   localtime_r( &curtime, &tmptr );
+   strftime( timeStr, sizeof(timeStr), "%m/%d/%y %H:%M:%S", &tmptr );
 
    // Get new log to output
    size = vsnprintf( buffer, LOGF_BUF_SIZE, format, msg );
@@ -206,6 +214,8 @@ void Log( int level, char *format, ... )
    {
       buffer[ LOGF_BUF_SIZE-1 ] = '\0';
    }
+
+   pthread_mutex_lock( &LogMutex );               // only one thread at a time
 
    if ( syslog_level >= level )
    {
@@ -222,10 +232,12 @@ void Log( int level, char *format, ... )
             fclose( fptr );
 
             // see if time to rotate the log file
-            _Log_ChkRotate( syslog_file_path, syslog_log_size * 1000);
+            _Log_ChkRotate( syslog_file_path, syslog_log_size * 1000, syslog_rotate);
          }
       }
    }
+
+   pthread_mutex_unlock( &LogMutex );
 }
 
 
@@ -236,15 +248,15 @@ void Log( int level, char *format, ... )
 
 ---------------------------------------------------------------------------*/
 
-static void _Log_ChkRotate( char *fpath, int max_size )
+static void _Log_ChkRotate( char *fpath, int max_size, int max_files )
 {
    struct stat statf;
 
-   if ( stat( fpath, &statf ) == 0 )            // log file exists?
+   if ( stat( fpath, &statf ) == 0 )                    // log file exists?
    {
-      if ( statf.st_size > max_size )           // now too big?
+      if ( statf.st_size > max_size )                   // now too big?
       {
-         _Log_rotate( fpath, max_size );        // rotate the logs
+         _Log_rotate( fpath, max_files );               // rotate the logs
       }
    }
 }
