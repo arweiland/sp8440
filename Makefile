@@ -2,8 +2,8 @@
 SOURCES = main.c startup.c plugins.c msgSend.c msgBuild.c msgXML.c server.c spRec.c cJSON.c strsub.c config.c jconfig.c logging.c
 OBJECTS = $(SOURCES:.c=.o)
 
-CC = gcc
-#CC = bfin-linux-uclibc-gcc
+#CC = gcc
+CC = bfin-linux-uclibc-gcc
 
 #If the following is defined, build the plug-in version of the code
 PLUGIN = 1
@@ -25,10 +25,12 @@ LDFLAGS = -lcurl -levent -lexpat -lm -lpthread -ldl
 all:	$(TARGET)
 
 main_plugin: $(OBJECTS) plugins.o
+	@echo "CREATING PLUGIN VERSION"
 	$(CC) $(CFLAGS) $(PFLAGS) $(OBJECTS)  -o sp8440.so $(LDFLAGS)
 	$(CC) $(CFLAGS)  main.o plugins.o  -o main_plugin $(LDFLAGS) -ldl
 
 main: 	$(OBJECTS)
+	@echo "CREATING STANDALONE VERSION"
 	$(CC) $(CFLAGS1) $(OBJECTS) -o main $(LDFLAGS)
 
 msgSend:  msgSend.o msgBuild.o spRec.o cJSON.o

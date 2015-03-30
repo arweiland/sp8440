@@ -75,6 +75,7 @@ int spRec_Init( void )
 
    SPphones = (SPphone_record_t *)malloc( memsize );
    SPphones[ max_SPphones ].in_use = -1;     // sentinal node (end of array)
+   Log( INFO, "%s Created room for %d phones\n", __func__, max_SPphones );
    _spRec_ParseFile();
 
    return 0;
@@ -164,7 +165,7 @@ int spRec_AddRecord( char *ip_addr, char *mac, int line_num )
 
       if ( sptr->in_use == -1 )
       {
-         Log( WARN, "%s: WARNING: Phone records are full!\n", __func__ );
+         Log( WARN, "%s: Phone records are full!\n", __func__ );
          return -1;
       }
 
@@ -321,7 +322,7 @@ int _spRec_ParseFile( void )
 
    if ( (fptr = fopen( outfile, "r" )) == NULL )
    {
-      Log( ERROR, "%s: Can't open file \"%s\"\n", __func__, outfile );
+      Log( WARN, "%s: Can't open file for reading \"%s\"\n", __func__, outfile );
       return -1;
    }
 

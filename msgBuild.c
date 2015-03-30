@@ -19,6 +19,7 @@
 #include "strsub.h"
 #include "server.h"
 #include "config.h"
+#include "logging.h"
 
 static char alarmStr[10];      // Alarm number string
 static char audio1Str[20];     // name of audio file 1
@@ -95,7 +96,7 @@ int msgBuild_makeAlertMsg( char *template_fname, char *outbuf, int bufsize, char
    _msgBuild_buildMsg( outbuf, template, MAXFILE );
 
 //   printf( "%s\n", outbuf );
-   printf( "%s INFO Message size: %ld\n", __func__, strlen( outbuf ) );
+   Log( DEBUG, "%s Message size: %d\n", __func__, (int)strlen( outbuf ) );
    return 0;
 }
 
@@ -118,7 +119,7 @@ int msgBuild_makeAcceptMsg( char *template_fname, char *outbuf, int bufsize, cha
    _msgBuild_buildMsg( outbuf, template, MAXFILE );
 
 //   printf( "%s\n", outbuf );
-   printf( "%s INFO Message size: %ld\n", __func__, strlen( outbuf ) );
+   Log( DEBUG, "%s Message size: %d\n", __func__, (int)strlen( outbuf ) );
    return 0;
 
 }

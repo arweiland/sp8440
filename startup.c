@@ -1,13 +1,14 @@
 /** 
- *  @file   main.c
+ *  @file   startup.c
  *  @author Ron Weiland, Indyme Solutions
- *  @date   3/13/15
+ *  @date   3/27/15
  *  @brief  Plugin main module for testing
  *
  *  @section Description 
  * 
- * Initializes all modules.\n
- * Starts web server and waits until it dies
+ * - If the code is compiled as a plugin, loads the sp8440.so shared library and attempts to initialze it.\n
+ *    It then goes into a loop outputting alert messages to all phones
+ * - If compiled as standalone, initializes all modules and executes main loop
  */
 
 

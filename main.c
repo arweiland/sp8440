@@ -1,3 +1,16 @@
+/** 
+ *  @file   main.c
+ *  @author Ron Weiland, Indyme Solutions
+ *  @date   3/13/15
+ *  @brief  Main module for standalone testing
+ *
+ *  @section Description 
+ * This file is only used for testing.\n
+ * - If compiled as plugin, calls the plugin initialization code ripped from CLX\n
+ * - If compiled as standalone, initialized the sp8440 module directly.\n
+ */
+
+
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
@@ -24,13 +37,13 @@ int main( void )
    }
    else
    {
-      printf( "8440 Pluin started successfully\n" );
+      printf( "8440 Plugin started successfully\n" );
    }
 
 #else
    // start directy
    printf( "Starting the module directly\n" );
-   sp8440_Start();
+   sp8440_Start( NULL );
 #endif
 
    while( 1 )

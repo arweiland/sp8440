@@ -6,17 +6,25 @@
 
 @section intro Introduction
 This code works as a plug-in to the CLX to send alarm messages
-to Spectralink 8440 phones and receives responses from them.  
+to Spectralink 8440 phones and receive responses from them.  
 
 The receiver of the message has the option of accepting or
 rejecting the alarm.
 
 The plugin is made up of several modules:
+
+@subsection startup Startup Module
+The startup module (startup.c) is only for testing, and is in charge of starting / initializing the rest of the module
+- If compiled as standalone, all code is linked directly and this module initializes it.
+- If compile as plug-in, the sp8440 module is a shared library (sp8440.so).  This code\n
+calls the CLX plugin initialization module which loads the shared library and initializes it.
+- It then starts a main loop thread which continually outputs alerts to all the phones.
+
 @subsection server Server Module
-The server (server.c) is a custom web server based on libevent that performs multiple duties:
+The server (server.c) is a custom web server based on libevent and libexpat that performs multiple duties:
 - Handles sending of audio alert messages to phones
 - Handles return URI when phone user presses softkey
-- Handles telephony response messages 
+- Handles telephony notification messages in XML format. Used to track phones.
 
 @subsection msgsender MsgSender Module
 The message sender module (msgSend.c) uses libcurl to send HTML pages to all available phones in parallel using digest authorization
@@ -28,16 +36,16 @@ This module (msgBuild.c) takes information on the alert to be sent such as
 - Escalation level
 - Server IP:port
 
-and uses it, along with a tokenized template HTML files to create a final HTML file to send to the phones
+and uses it, along with a tokenized template HTML files to create a final HTML file to send to the phones.
 
 @subsection sprec Phone Status Recorder Module
 This module (spRec.c) keeps track of the current status of phones.  Status is saved to disk in JSON format which is read in
 whenever the system boots.
 
 @subsection config Configuration Module
-This modules (config.c) reads in configuration information from a Windows INI-type configuration file
+This modules (config.c) reads in configuration information from a Windows INI-type configuration file.
 
 @subsection logging Logging Module
-This module (logging.c) handles module logging and log rotating with variable log levels
+This module (logging.c) handles module logging and phone logging, along with log rotating with variable log levels.
 @image html 8440.jpg
 */

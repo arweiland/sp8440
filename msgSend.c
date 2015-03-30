@@ -43,8 +43,15 @@ typedef struct
    char *msg;
 }curlThreadMsg_t;
 
-char *alert_template = NULL;           // alert template file name
-char *accept_template = NULL;          // accept template file name
+curlThreadMsg_t msgs[ MAX_SPPHONES ];         // array of message data
+
+char alert_msgBuf[ MAX_HTML_DATA ];           // Alert message buffer to send
+char accept_msgBuf[ MAX_HTML_DATA ];          // Accept message buffer to send
+char accept_msgBuf2[ MAX_HTML_DATA ];         // Special Accept message buffer to send
+
+static char *alert_template = NULL;           // alert template file name
+static char *accept_template = NULL;          // accept template file name
+static int net_timeout = 0;                   // How long to wait for response from phone
 
 void _msgSend_PushMsgs( char *msg, char *special_ip, char *specal_msg );
 void *_msgSend_PushMsgThread( void *ip_addr );
@@ -61,7 +68,6 @@ int main( void )
 
 void msgSend_PushAlert( char *dept, int alarm, int level )
 {
-   char msgBuf[ MAX_HTML_DATA ];             // message buffer to send
 
    if ( alert_template == NULL )
    {
@@ -73,15 +79,12 @@ void msgSend_PushAlert( char *dept, int alarm, int level )
    }
 
    // create the message to send
-   msgBuild_makeAlertMsg( alert_template, msgBuf, MAX_HTML_DATA, dept, alarm, level );
-   _msgSend_PushMsgs( msgBuf, NULL, NULL );
+   msgBuild_makeAlertMsg( alert_template, alert_msgBuf, MAX_HTML_DATA, dept, alarm, level );
+   _msgSend_PushMsgs( alert_msgBuf, NULL, NULL );
 }
 
 void msgSend_PushAccept( char *dept, int type, char *accept_ip )
 {
-   char msgBuf[ MAX_HTML_DATA ];             // message buffer to send
-   char msgBuf2[ MAX_HTML_DATA ];            // Special buffer to send
-
    char *msg;
 
    if ( accept_template == NULL )
@@ -94,9 +97,15 @@ void msgSend_PushAccept( char *dept, int type, char *accept_ip )
    }
 
    msg = (type == 0) ? "Request Accepted" : "Request Complete";
-   msgBuild_makeAcceptMsg( accept_template, msgBuf, MAX_HTML_DATA, dept, msg );
-   msgBuild_makeAcceptMsg( accept_template, msgBuf2, MAX_HTML_DATA, dept, "You accepted" );
-   _msgSend_PushMsgs( msgBuf, accept_ip, msgBuf2 );
+
+   // Make accept message for all phones except the one that accepted
+   msgBuild_makeAcceptMsg( accept_template, accept_msgBuf, MAX_HTML_DATA, dept, msg );
+
+   // Make accept message for phone that accepted
+   msgBuild_makeAcceptMsg( accept_template, accept_msgBuf2, MAX_HTML_DATA, dept, "You accepted" );
+
+   // Send to all phones
+   _msgSend_PushMsgs( accept_msgBuf, accept_ip, accept_msgBuf2 );
 }
 
 
@@ -104,9 +113,15 @@ void _msgSend_PushMsgs( char *msg, char *special_ip, char *special_msg )
 {
    int i;
    pthread_t tid[ MAX_SPPHONES ];            // array of thread ids
-   curlThreadMsg_t msgs[ MAX_SPPHONES ];     // array of message data
    int msgIndex;
    SPphone_record_t *phone;                  // phone informatiion
+
+   // If we haven't read timeout from config yet, read it now
+   if ( net_timeout == 0 )                   // Haven't read timeout yet?
+   {
+      net_timeout = config_readInt( "phones", "phone_timeout", 5 );
+      Log( DEBUG, "%s: Setting phone timeout to %d\n", __func__, net_timeout ); 
+   }
 
    // create the send threads
    phone = NULL;                             // start with first record
@@ -128,14 +143,19 @@ void _msgSend_PushMsgs( char *msg, char *special_ip, char *special_msg )
       msgIndex++;
    }
 
+#if 0
    /* now wait for all threads to terminate */
    for(i=0; i< msgIndex; i++)
    {
       pthread_join(tid[i], NULL);
 //      fprintf(stderr, "Thread %d terminated\n", i);
    }
-   printf( "Leaving %s\n", __func__ );
-
+#else
+   for(i=0; i< msgIndex; i++)
+   {
+      pthread_detach(tid[i]);
+   }
+#endif
 }
 
 void *_msgSend_PushMsgThread( void *msg )
@@ -170,11 +190,11 @@ void *_msgSend_PushMsgThread( void *msg )
    // curl_easy_setopt(hnd, CURLOPT_POSTFIELDSIZE_LARGE, (curl_off_t)-1);
    // curl_easy_setopt(hnd, CURLOPT_MAXREDIRS, 50L);
 
-   printf( "Sending to %s\n", msgData->ip_addr );
+   Log( DEBUG, "%s: Sending to %s\n", __func__, msgData->ip_addr );
 
    if ( (ret = curl_easy_perform(hnd)) != 0 )
    {
-      printf( "Failed on connection \"%s\": error: %d, %s\n", msgData->ip_addr, ret, curl_easy_strerror(ret) );
+      Log( DEBUG, "%s: Failed on connection \"%s\": error: %d, %s\n", __func__, msgData->ip_addr, ret, curl_easy_strerror(ret) );
    }
    else
    {
