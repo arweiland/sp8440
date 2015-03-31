@@ -130,8 +130,8 @@ int _msgSend_PushMsgs( char *msg, char *special_ip, char *special_msg )
    {
       net_timeout = config_readInt( "phones", "phone_timeout", 5 );
       Log( DEBUG, "%s: Setting phone timeout to %d\n", __func__, net_timeout ); 
-      username = config_readStr( "phones", "username", "admin" );
-      password = config_readStr( "phones", "password", "456" );
+      username = config_readStr( "phones", "phone_username", "admin" );
+      password = config_readStr( "phones", "phone_password", "456" );
       len = snprintf( authentication, sizeof( authentication ), "%s:%s", username, password );      // authentication string
       if ( len >= sizeof( authentication ) )
       {
