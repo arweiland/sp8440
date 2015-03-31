@@ -39,8 +39,7 @@ pthread_t server_tid;
 char PluginStatusString[100];
 int  PluginStatus;
 
-void *_main_loop( void *msg );
-
+void *_main_thread( void *msg );
 
 
 /*---------( init_plugin )----------
@@ -94,7 +93,7 @@ int init_plugin( plugin_t *stat )
    if ( PluginStatus == PLUGIN_RUNNING )
    {
       // Start main plugin thread
-      pthread_create( &tid, NULL, _main_loop, NULL );
+      pthread_create( &tid, NULL, _main_thread, NULL );
    }
 
    return PluginStatus;
@@ -124,7 +123,7 @@ void *sp8440_Start( void *msg )
    server_Init( &server_tid );
 
    // Start main plugin thread
-   pthread_create( &tid, NULL, _main_loop, NULL );
+   pthread_create( &tid, NULL, _main_thread, NULL );
 
    return NULL;
 }
@@ -149,57 +148,16 @@ void MainSignal( int status, char *statstr )
    pthread_mutex_unlock( &StartMutex );
 }
 
-/*----------- This is a temporary function for testing! -------------*/
-// In the real system, spRec_CheckStale should be called from timer or somewhere else
-
-#ifndef __CLX__
-
-void *_main_loop( void *msg )
+void *_main_thread( void *msg )
 {
-   sleep(1);
-
-   while(1)
+   while( 1 )
    {
-      // Wait until there is at least one phone to output to
-      while ( spRec_GetNextRecord( NULL ) == NULL )
-      {
-         sleep( 1 );
-      }
-#if 0
-      printf( "%s: pushing level 1\n" , __func__ );
-      msgSend_PushAlert( "Electrical", 100, 0);
-      waitSec( 30 );
-      printf( "%s: pushing level 2\n" , __func__ );
-      msgSend_PushAlert( "Electrical", 100, 1);
-      waitSec( 30 );
-      printf( "%s: pushing level 3\n" , __func__ );
-      msgSend_PushAlert( "Electrical", 100, 2);
-      waitSec( 30 );
-#endif
-      msgQueue_Add( "Electrical", 100, 0);
-      msgQueue_Add( "Electrical", 100, 1);
-      msgQueue_Add( "Electrical", 100, 2);
-      waitSec(30);
-   }
-
-   // join on web server thread
-//   pthread_join( tid, NULL );
-   return 0;
-}
-
-void waitSec( int seconds )
-{
-   int i;
-   for( i = 0; i < seconds; i++ )
-   {
-      sleep(1);
       if ( pthread_kill( server_tid, 0 ) != 0 )    // check server thread
       {
          printf( "%s. Server dead. Exiting\n", __func__ );
          _exit(1);
       }
       spRec_CheckStale();    // check for "stale" phones
+      sleep( 1 );
    }
 }
-
-#endif

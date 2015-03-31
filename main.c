@@ -18,7 +18,13 @@
 #include "startup.h"
 #include "plugins.h"
 
+#ifndef PLUGIN
+#include "msgQueue.h"
+#endif
+
 int chk_sp8440Status( void );
+
+void _test_loop( void );
 
 int main( void )
 {
@@ -46,10 +52,7 @@ int main( void )
    sp8440_Start( NULL );
 #endif
 
-   while( 1 )
-   {
-      sleep(1);
-   }
+   _test_loop();
    return 0;
 }
 
@@ -71,3 +74,23 @@ int chk_sp8440Status( void )
    return -1;           // not found
 }
 
+
+/*----------- This is a temporary function for testing! -------------*/
+// In the real system, spRec_CheckStale should be called from timer or somewhere else
+
+#ifndef PLUGIN
+
+void _test_loop( void )
+{
+   sleep(1);
+
+   while(1)
+   {
+      msgQueue_Add( "Electrical", 100, 0);
+      msgQueue_Add( "Electrical", 100, 1);
+      msgQueue_Add( "Electrical", 100, 2);
+      sleep(30);
+   }
+}
+
+#endif
