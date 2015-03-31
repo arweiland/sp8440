@@ -18,6 +18,7 @@
 #include "queues.h"
 #include "logging.h"
 #include "msgSend.h"
+#include "config.h"
 
 #define MAX_DEPT_NAME 20
 
@@ -30,7 +31,9 @@ typedef struct
 
 static QUEUE_ID msg_queue;
 
-static int msgQueue_delay;       // Delay period between outputs
+static int msgQueue_timer;            // Timer between outputs
+static int msgQueue_alert_delay;      // Inter-alert delay period
+static int msgQueue_accept_delay;     // Delay after accept
 
 #define MAX_MSGS  10             // max alarms allowed in queue
 
@@ -45,20 +48,23 @@ void _msgQueue_Init( void )
 
    // Start up the run thread
    pthread_create( &msgQueue_tid, NULL, _msgQueue_RunThread, NULL );
+
+   // Get delay settings from config file
+   msgQueue_alert_delay = config_readInt("phones", "alert_delay", 10 ) * 10;
+   msgQueue_accept_delay = config_readInt("phones", "accept_delay", 2 ) * 10;
 }
 
 
 void msgQueue_SetAccept( void )
 {
-   msgQueue_SetDelay( 2 );
+   msgQueue_SetDelay( msgQueue_accept_delay );
 }
 
 
 void msgQueue_SetDelay( int delay )
 {
-   printf( "Setting delay to %d seconds\n", delay );
    pthread_mutex_lock( &msgQueue_mutex );
-   msgQueue_delay = delay * 10;                 // internal delay period is 100ms
+   msgQueue_timer = delay;                    // internal delay period is 100ms
    pthread_mutex_unlock( &msgQueue_mutex );
 }
 
@@ -69,7 +75,7 @@ int msgQueue_Add( char *msg, int alarm, int level )
 
    if ( msg_queue == (QUEUE_ID)0 )       // not initialized yet?
    {
-      _msgQueue_Init();
+      _msgQueue_Init();                  // do it now
    }
 
    strncpy( qmsg.dept, msg, MAX_DEPT_NAME );
@@ -89,8 +95,6 @@ int msgQueue_Add( char *msg, int alarm, int level )
       return -1;
    }
 
-   printf( "Enqueued 1\n" );
-
    return 0;
 }
 
@@ -104,11 +108,10 @@ void *_msgQueue_RunThread( void *msg )
    {
       if ( dequeue_data( msg_queue, &qmsg ) )                      // queue not empty?
       {
-         printf( "Outputting %s, %d, %d\n", qmsg.dept, qmsg.alarm, qmsg.level );
          msgSend_PushAlert( qmsg.dept, qmsg.alarm, qmsg.level );
 
          pthread_mutex_lock( &msgQueue_mutex );
-         msgQueue_delay = 100;       // delay 10 seconds between alarm msgs
+         msgQueue_timer = msgQueue_alert_delay;       // delay between alarm msgs
          pthread_mutex_unlock( &msgQueue_mutex );
 
          // inter-message delay
@@ -117,7 +120,7 @@ void *_msgQueue_RunThread( void *msg )
          while( !next_msg )
          {
             pthread_mutex_lock( &msgQueue_mutex );
-            if ( --msgQueue_delay <= 0 )
+            if ( --msgQueue_timer <= 0 )
             {
                next_msg = 1;
             }

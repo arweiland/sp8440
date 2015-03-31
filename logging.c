@@ -60,7 +60,7 @@ static char *lev_str[] =
 
 
 #define SP8440_LOG_FILE  "spSystem"        // name of system log file, without extent
-#define PHONES_LOG_FILE  "sp8440"          // name of phone log file, without extent
+#define PHONES_LOG_FILE  "spPhones"        // name of phone log file, without extent
 
 static void _Log_ChkRotate( char *fpath, int max_size, int max_files );
 static void _Log_rotate( char *fpath, int max_files );

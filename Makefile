@@ -7,7 +7,7 @@ CC = gcc
 #CC = bfin-linux-uclibc-gcc
 
 #If the following is defined, build the plug-in version of the code
-#PLUGIN = 1
+PLUGIN = 1
 
 ifdef PLUGIN
 TARGET = main_plugin
