@@ -1,3 +1,14 @@
+/** 
+ *  @file   msgQueue.c
+ *  @author Ron Weiland, Indyme Solutions
+ *  @date   3/30/15
+ *  @brief  Alarm Message queue
+ * 
+ * @section Description
+ * Queues alarm messages from the system and sends them out at timed intervals
+ *
+ */
+
 #include <string.h>
 #include <pthread.h>
 #include <stdio.h>

@@ -26,6 +26,9 @@ The server (server.c) is a custom web server based on libevent and libexpat that
 - Handles return URI when phone user presses softkey
 - Handles telephony notification messages in XML format. Used to track phones.
 
+@subsection queue MsgQueue Module
+The message queue module (msgQueue.c) receives alarms from the system and queues them.  They are then are output to the phones at timed intervals, allowing the phone user time to respond.
+
 @subsection msgsender MsgSender Module
 The message sender module (msgSend.c) uses libcurl to send HTML pages to all available phones in parallel using digest authorization
 
