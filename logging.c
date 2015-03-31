@@ -59,30 +59,11 @@ static char *lev_str[] =
 #endif
 
 
-#define SP8440_LOG_FILE  "spSystem"        // name of system log file, without extent
-#define PHONES_LOG_FILE  "spPhones"        // name of phone log file, without extent
+#define SP8440_LOG_FILE  "spSystem.log"        // name of system log file
+#define PHONES_LOG_FILE  "spPhones.log"        // name of phone log file
 
 static void _Log_ChkRotate( char *fpath, int max_size, int max_files );
 static void _Log_rotate( char *fpath, int max_files );
-
-/*---------  These would normally come from CLX's filesubs.c  ------------*/
-
-#ifndef fpath_make_name
-#define FSEP '/'
-void fpath_make_name( char *dest, char *name, char *path )
-{
-   sprintf( dest, "%s%c%s", path, FSEP, name );
-}
-#endif
-
-#ifndef fpath_get_path
-#define LOG_PATH 2
-char *fpath_get_path( int type )
-{
-   return "logs/";
-}
-
-#endif
 
 int _Log_GetLevel( char *lstr );
 
@@ -105,7 +86,6 @@ void PLog( int level, char *format, ... )
    time_t curtime;
    char timeStr[100];
    char *log_level_str;
-   char sname[100];
    struct tm tmptr;
 
    va_start( msg, format );
@@ -121,8 +101,7 @@ void PLog( int level, char *format, ... )
       phonelog_level = _Log_GetLevel( log_level_str );
 
       // Get full log file name / path
-      fpath_make_name( sname, PHONES_LOG_FILE, fpath_get_path( LOG_PATH ) );
-      sprintf( phonelog_file_path, "%s.log", sname );      // full name with extent
+      sprintf( phonelog_file_path, "%s%s", LOGDIR, PHONES_LOG_FILE );
    }
 
    // Get current time / date string
@@ -182,7 +161,6 @@ void Log( int level, char *format, ... )
    time_t curtime;
    char timeStr[100];
    char *log_level_str;
-   char sname[100];
    struct tm tmptr;
 
 
@@ -199,8 +177,7 @@ void Log( int level, char *format, ... )
       syslog_level = _Log_GetLevel( log_level_str );
 
       // Get full log file name / path
-      fpath_make_name( sname, SP8440_LOG_FILE, fpath_get_path( LOG_PATH ) );
-      sprintf( syslog_file_path, "%s.log", sname );      // full name with extent
+      sprintf( syslog_file_path, "%s%s", LOGDIR, SP8440_LOG_FILE );
    }
 
    // Get current time / date string

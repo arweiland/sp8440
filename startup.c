@@ -28,7 +28,6 @@
 #include "plugins.h"
 #include "msgQueue.h"
 
-char *cfgFile = "sp8440.cfg";
 char *Version = "0.0.1 beta1";
 
 void waitSec( int seconds );
@@ -108,10 +107,10 @@ void *sp8440_Start( void *msg )
 {
    pthread_t tid;
 
-   if ( config_init( cfgFile ) != 0 )
+   if ( config_init( CFGNAME ) != 0 )
    {
-      Log( CRIT, "%s: Can't open config file \"%s\"!  Terminating.\n", __func__, cfgFile );
-      printf( "%s: Can't open config file \"%s\"!  Terminating.\n", __func__, cfgFile );
+      Log( CRIT, "%s: Can't open config file \"%s\"!  Terminating.\n", __func__, CFGNAME );
+      printf( "%s: Can't open config file \"%s\"!  Terminating.\n", __func__, CFGNAME );
       MainSignal( -1, "Can't open config file!\n" );
       return NULL;
    }

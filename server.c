@@ -41,6 +41,7 @@
 #include "logging.h"
 #include "startup.h"
 #include "msgQueue.h"
+#include "alarms.h"
 
 
 /*---- internal function prototypes ---*/
@@ -56,7 +57,7 @@ void _server_getOurIP( void );
 // Note:  evhttp_request is defined in event2/http_struct.h
 // Note:  struct evhttp is defined in http-internal.h, which is not global (opaque)
 
-char *rootDir = ".";           // root directory to service files from
+char *rootDir = BASEDIR;           // root directory to service files from
 
 char serverIpAddress[ 40 ];    // our own IP address
 
@@ -67,6 +68,9 @@ void server_Init( pthread_t *tid )
    pthread_create( tid, NULL, _server_DispatchThread, NULL );
 }
 
+/*
+ *  Main web server thread.  Should never exit
+ */
 
 void *_server_DispatchThread( void *arg )
 {
@@ -76,7 +80,7 @@ void *_server_DispatchThread( void *arg )
    char          *http_addr = INADDR_ANY;
    char portStr[10];
 
-   http_port = (short)config_readInt( "general", "port", 8090 );
+   http_port = (short)config_readInt( "general", "port", 8081 );
 
    struct event_base *base = event_base_new();
    struct evhttp *http_server = evhttp_new( base );
@@ -88,7 +92,7 @@ void *_server_DispatchThread( void *arg )
    if(!http_server)
    {
       Log( ERROR, "%s: Couldn't get web server base!\n", __func__ );
-      MainSignal( -1, "Couldn't get web server base!" );
+      MainSignal( -1, "Couldn't get web server base!" );    // Report to startup code
    }
 
    int ret = evhttp_bind_socket(http_server,http_addr,http_port);
@@ -96,7 +100,7 @@ void *_server_DispatchThread( void *arg )
    {
       errStr = strerror( errno );
       Log( ERROR, "%s: Bind failed!: %s\n", __func__, errStr );
-      MainSignal( -1, "Bind failed!" );
+      MainSignal( -1, "Bind failed!" );                    // Report to startup code
       return NULL;
    }
 
@@ -110,7 +114,7 @@ void *_server_DispatchThread( void *arg )
 
    Log( INFO, "%s: Web server start OK! \n", __func__ );
    printf("%s: Web server start OK \n", __func__ );
-   MainSignal( 0, "OK" );
+   MainSignal( 0, "OK" );                                 // Report to startup code
 
    // The following is a blocking call
    event_base_dispatch(base);
@@ -126,6 +130,9 @@ char *server_GetOurAddress( void )
    return serverIpAddress;
 }
 
+/*
+ *   The post handler receives data sent from phone (telephony notifications)
+ */
 
 void _server_post_handler( struct evhttp_request *req, void *state )
 {
@@ -136,18 +143,18 @@ void _server_post_handler( struct evhttp_request *req, void *state )
    phone_reg_t *phone_reg;
 
    cmd = evhttp_request_get_command(req);
-   printf( "In post handler.  Command: %s from %s\n", _server_getCmdTypeStr( cmd ), req->remote_host );
+   Log( DEBUG, "%s: Command: %s from %s\n", __func__, _server_getCmdTypeStr( cmd ), req->remote_host );
 
    if ( cmd != EVHTTP_REQ_POST )
    {
-      printf( "Unexpected request. Type: %s\n", _server_getCmdTypeStr( cmd ) );
+      Log( WARN, "%s: Unexpected request. Type: %s\n", __func__, _server_getCmdTypeStr( cmd ) );
       return;
    }
 
    inBuf = evhttp_request_get_input_buffer(req);
    if ( (len = evbuffer_get_length( inBuf )) > sizeof( xmlData ) )
    {
-      printf( "Data too large!. Len: %ld, Max: %ld\n", len, sizeof( xmlData ) );
+      Log( ERROR, "%s: Data too large!. Len: %ld, Max: %ld\n", __func__, len, sizeof( xmlData ) );
       return;
    }
    evbuffer_copyout( inBuf, xmlData, len );
@@ -157,7 +164,7 @@ void _server_post_handler( struct evhttp_request *req, void *state )
 
    if ( (phone_reg = msgXML_parseRegistration( xmlData, len )) == NULL )
    {
-      printf( "Parsing of phone registration failed!\n" );
+      Log( ERROR, "%s: Parsing of phone registration failed!\n", __func__ );
    }
    else
    {
@@ -174,6 +181,9 @@ void _server_post_handler( struct evhttp_request *req, void *state )
    evhttp_send_reply(req, HTTP_OK, "OK", NULL);
 }
 
+/*
+ * This function receives "activate" actions from phone.
+ */
 
 void _server_activate_handler(struct evhttp_request *req, void *state)
 {
@@ -182,7 +192,7 @@ void _server_activate_handler(struct evhttp_request *req, void *state)
    const char *dept;
    const char *alarm;
 
-   printf( "activate. Uri: %s, Source: %s\n", req->uri, req->remote_host );
+   Log( DEBUG, "%s: Uri: %s, Source: %s\n", __func__, req->uri, req->remote_host );
 
    evhttp_parse_query( req->uri, &headers );
 
@@ -203,6 +213,7 @@ void _server_activate_handler(struct evhttp_request *req, void *state)
          PLog( NOTICE, "Alarm %s accepted by %s\n", alarm, req->remote_host );
          msgSend_PushAccept( (char *)dept, MSGSEND_ACCEPT, req->remote_host );
          msgQueue_SetAccept();          // delay before next alarm msg
+         ack_alarm_num_no_verify( atoi(alarm), ALARM_PHONE_ACK );     // ack alarm
       }
       else if (strcasestr( val, "decline" ))
       {
@@ -220,6 +231,10 @@ void _server_activate_handler(struct evhttp_request *req, void *state)
    evhttp_send_reply(req, HTTP_OK, "OK", NULL);
 }
 
+/*
+ *   This handler gets all requests not otherwise accounted for.
+ *   Main one we are interested in is the audio file request
+ */
 
 void _server_generic_handler(struct evhttp_request *req, void *state)
 {

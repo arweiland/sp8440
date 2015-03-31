@@ -34,7 +34,7 @@ void _spRec_EncodePhones( void );                // write phone records to JSON
 void _spRec_GetStr( cJSON *root, char *what, char *dest, int len );
 void _spRec_GetInt( cJSON *root, char *what, int *dest );
 
-static char *outfile;                   // output file name
+static char *outfile = BASEDIR "sp8440.json";     // output file name
 
 #if 0
 
@@ -66,8 +66,6 @@ int spRec_Init( void )
 {   
    int memsize;
 
-   outfile = config_readStr( "phones", "records_file", "phones.json" );
-
    // Get max number of phones from config, default to 50
    max_SPphones = config_readInt( "phones", "max_phones", 50 );
 
@@ -75,7 +73,7 @@ int spRec_Init( void )
 
    SPphones = (SPphone_record_t *)malloc( memsize );
    SPphones[ max_SPphones ].in_use = -1;     // sentinal node (end of array)
-   Log( INFO, "%s Created room for %d phones\n", __func__, max_SPphones );
+   Log( INFO, "%s: Created room for %d phones\n", __func__, max_SPphones );
    _spRec_ParseFile();
 
    return 0;
@@ -304,7 +302,7 @@ void _spRec_EncodePhones(void)
 
    fprintf( fptr, "]}\n");
    fclose( fptr );
-   Log( DEBUG, "%s. Wrote records file\n", __func__ );
+   Log( DEBUG, "%s: Wrote records file\n", __func__ );
 }
 
 /*-----------------( _spRec_ParseFile )-------------------

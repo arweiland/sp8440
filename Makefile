@@ -1,13 +1,13 @@
 
 SOURCES = main.c startup.c plugins.c msgSend.c msgBuild.c msgXML.c msgQueue.c server.c spRec.c \
-	cJSON.c strsub.c config.c jconfig.c logging.c queues.c
+	cJSON.c strsub.c config.c jconfig.c logging.c queues.c alarms.c
 OBJECTS = $(SOURCES:.c=.o)
 
 CC = gcc
 #CC = bfin-linux-uclibc-gcc
 
 #If the following is defined, build the plug-in version of the code
-PLUGIN = 1
+#PLUGIN = 1
 
 ifdef PLUGIN
 TARGET = main_plugin

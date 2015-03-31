@@ -12,12 +12,14 @@
 #include <curl/curl.h>
 #include <pthread.h>
 #include <string.h>
+#include <malloc.h>
 
 #include "msgSend.h"
 #include "msgBuild.h"
 #include "spRec.h"
 #include "config.h"
 #include "logging.h"
+#include "alarms.h"
 
 #define MAX_HTML_DATA 2000       // max size of HTML message to send
 
@@ -49,11 +51,12 @@ char alert_msgBuf[ MAX_HTML_DATA ];           // Alert message buffer to send
 char accept_msgBuf[ MAX_HTML_DATA ];          // Accept message buffer to send
 char accept_msgBuf2[ MAX_HTML_DATA ];         // Special Accept message buffer to send
 
-static char *alert_template = NULL;           // alert template file name
-static char *accept_template = NULL;          // accept template file name
+static char *alert_template;                  // alert template file name / path
+static char *accept_template;                 // accept template file name / path
 static int net_timeout = 0;                   // How long to wait for response from phone
+static char authentication[40];               // username / password to send for authentication
 
-void _msgSend_PushMsgs( char *msg, char *special_ip, char *specal_msg );
+int _msgSend_PushMsgs( char *msg, char *special_ip, char *specal_msg );
 void *_msgSend_PushMsgThread( void *ip_addr );
 size_t _msgSend_WriteCallback( void *buffer, size_t size, size_t nmemb, void *data );
 
@@ -68,32 +71,35 @@ int main( void )
 
 void msgSend_PushAlert( char *dept, int alarm, int level )
 {
+   char fname[100];
 
-   if ( alert_template == NULL )
+   if ( alert_template == NULL );
    {
-      if ( (alert_template = config_readStr( "phones", "alert_template", "alert" )) == NULL )
-      {
-         printf( "%s ERROR Alert template file name not found in config!\n", __func__ );
-         return;
-      }
+      sprintf( fname, "%s%s", BASEDIR, config_readStr( "phones", "alert_template", "alert" ));
+      alert_template = malloc( strlen( fname )+1 );
+      strcpy( alert_template, fname );               // copy over file name with path
    }
 
    // create the message to send
    msgBuild_makeAlertMsg( alert_template, alert_msgBuf, MAX_HTML_DATA, dept, alarm, level );
-   _msgSend_PushMsgs( alert_msgBuf, NULL, NULL );
+
+   if ( _msgSend_PushMsgs( alert_msgBuf, NULL, NULL ) == 0 )         // no phones available?
+   {
+      Log( INFO, "%s: No phones available.  Escalating alarm %d now\n", __func__, alarm );
+      escalate_alarm( alarm );          // escalate alarm now
+   }
 }
 
 void msgSend_PushAccept( char *dept, int type, char *accept_ip )
 {
    char *msg;
+   char fname[100];
 
    if ( accept_template == NULL )
    {
-      if ( (accept_template = config_readStr( "phones", "accept_template", "accept" )) == NULL )
-      {
-         printf( "%s ERROR accept template file name not found in config!\n", __func__ );
-         return;
-      }
+      sprintf( fname, "%s%s", BASEDIR, config_readStr( "phones", "accept_template", "accept" ));
+      accept_template = malloc( strlen( fname )+1 );
+      strcpy( accept_template, fname );               // copy over file name with path
    }
 
    msg = (type == 0) ? "Request Accepted" : "Request Complete";
@@ -109,18 +115,28 @@ void msgSend_PushAccept( char *dept, int type, char *accept_ip )
 }
 
 
-void _msgSend_PushMsgs( char *msg, char *special_ip, char *special_msg )
+int _msgSend_PushMsgs( char *msg, char *special_ip, char *special_msg )
 {
    int i;
    pthread_t tid[ MAX_SPPHONES ];            // array of thread ids
    int msgIndex;
    SPphone_record_t *phone;                  // phone informatiion
+   char *username;
+   char *password;
+   int len;
 
-   // If we haven't read timeout from config yet, read it now
-   if ( net_timeout == 0 )                   // Haven't read timeout yet?
+   // If we haven't read values from config yet, try now
+   if ( net_timeout == 0 || *authentication == '\0' )     // Haven't read values yet?
    {
       net_timeout = config_readInt( "phones", "phone_timeout", 5 );
       Log( DEBUG, "%s: Setting phone timeout to %d\n", __func__, net_timeout ); 
+      username = config_readStr( "phones", "username", "admin" );
+      password = config_readStr( "phones", "password", "456" );
+      len = snprintf( authentication, sizeof( authentication ), "%s:%s", username, password );      // authentication string
+      if ( len >= sizeof( authentication ) )
+      {
+         Log(WARN, "%s: Authenticaton string too long! \"%s\". Max size is %d bytes\n", __func__, authentication, (int)sizeof(authentication));
+      }
    }
 
    // create the send threads
@@ -156,7 +172,10 @@ void _msgSend_PushMsgs( char *msg, char *special_ip, char *special_msg )
       pthread_detach(tid[i]);
    }
 #endif
+
+   return msgIndex;            // return number of phones messages are being sent to
 }
+
 
 void *_msgSend_PushMsgThread( void *msg )
 {
@@ -174,7 +193,8 @@ void *_msgSend_PushMsgThread( void *msg )
    sprintf( ip_buf, "http://%s/push", msgData->ip_addr );
    curl_easy_setopt(hnd, CURLOPT_URL, ip_buf );
 
-   curl_easy_setopt(hnd, CURLOPT_USERPWD, "admin:456");
+//   curl_easy_setopt(hnd, CURLOPT_USERPWD, "admin:456");
+   curl_easy_setopt(hnd, CURLOPT_USERPWD, authentication );
    curl_easy_setopt(hnd, CURLOPT_POSTFIELDS, msgData->msg);
    curl_easy_setopt(hnd, CURLOPT_USERAGENT, "curl/7.22.0 (x86_64-pc-linux-gnu) libcurl/7.22.0 OpenSSL/1.0.1 zlib/1.2.3.4 libidn/1.23 librtmp/2.3");
    curl_easy_setopt(hnd, CURLOPT_HTTPAUTH, 2L);
@@ -241,7 +261,7 @@ void *_msgSend_PushMsgThread( void *msg )
 
 size_t _msgSend_WriteCallback( void *buffer, size_t size, size_t nmemb, void *data )
 {
-   printf( "%s called for address %s\n", __func__, ((curlThreadMsg_t *)data)->ip_addr );
+//   printf( "%s called for address %s\n", __func__, ((curlThreadMsg_t *)data)->ip_addr );
 
 //   printf( "Size: %d:%d, Data: \n", (int)size, (int)nmemb );
 //   fwrite( buffer, size, nmemb, stdout );

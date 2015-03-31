@@ -95,8 +95,7 @@ int msgBuild_makeAlertMsg( char *template_fname, char *outbuf, int bufsize, char
 
    _msgBuild_buildMsg( outbuf, template, MAXFILE );
 
-//   printf( "%s\n", outbuf );
-   Log( DEBUG, "%s Message size: %d\n", __func__, (int)strlen( outbuf ) );
+   Log( DEBUG, "%s: Message size: %d\n", __func__, (int)strlen( outbuf ) );
    return 0;
 }
 
@@ -119,7 +118,7 @@ int msgBuild_makeAcceptMsg( char *template_fname, char *outbuf, int bufsize, cha
    _msgBuild_buildMsg( outbuf, template, MAXFILE );
 
 //   printf( "%s\n", outbuf );
-   Log( DEBUG, "%s Message size: %d\n", __func__, (int)strlen( outbuf ) );
+   Log( DEBUG, "%s: Message size: %d\n", __func__, (int)strlen( outbuf ) );
    return 0;
 
 }
