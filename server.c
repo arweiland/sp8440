@@ -40,6 +40,8 @@
 #include "config.h"
 #include "logging.h"
 #include "startup.h"
+#include "msgQueue.h"
+
 
 /*---- internal function prototypes ---*/
 
@@ -200,6 +202,7 @@ void _server_activate_handler(struct evhttp_request *req, void *state)
       {
          PLog( NOTICE, "Alarm %s accepted by %s\n", alarm, req->remote_host );
          msgSend_PushAccept( (char *)dept, MSGSEND_ACCEPT, req->remote_host );
+         msgQueue_SetAccept();          // delay before next alarm msg
       }
       else if (strcasestr( val, "decline" ))
       {

@@ -29,8 +29,8 @@ static int phonelog_rotate;               // How many logs to rotate out
 static int phonelog_log_size;             // size of one log
 static char phonelog_file_path[100];      // name / path of syslog
 
-static pthread_mutex_t LogMutex;          // Thread synchronization for system logs
-static pthread_mutex_t PLogMutex;         // Thread synchronization for phone logs
+static pthread_mutex_t LogMutex = PTHREAD_MUTEX_INITIALIZER;    // Thread synchronization for system logs
+static pthread_mutex_t PLogMutex = PTHREAD_MUTEX_INITIALIZER;   // Thread synchronization for phone logs
 
 static char *lev_str[] =
 {

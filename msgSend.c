@@ -102,7 +102,7 @@ void msgSend_PushAccept( char *dept, int type, char *accept_ip )
    msgBuild_makeAcceptMsg( accept_template, accept_msgBuf, MAX_HTML_DATA, dept, msg );
 
    // Make accept message for phone that accepted
-   msgBuild_makeAcceptMsg( accept_template, accept_msgBuf2, MAX_HTML_DATA, dept, "You accepted" );
+   msgBuild_makeAcceptMsg( accept_template, accept_msgBuf2, MAX_HTML_DATA, dept, "You've accepted" );
 
    // Send to all phones
    _msgSend_PushMsgs( accept_msgBuf, accept_ip, accept_msgBuf2 );

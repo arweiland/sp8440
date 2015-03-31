@@ -26,14 +26,15 @@
 #include "config.h"
 #include "logging.h"
 #include "plugins.h"
+#include "msgQueue.h"
 
 char *cfgFile = "sp8440.cfg";
 char *Version = "0.0.1 beta1";
 
 void waitSec( int seconds );
 
-pthread_mutex_t StartMutex;
-pthread_cond_t  StartCV;
+pthread_mutex_t StartMutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t  StartCV = PTHREAD_COND_INITIALIZER;
 pthread_t server_tid;
 
 char PluginStatusString[100];
@@ -165,6 +166,7 @@ void *_main_loop( void *msg )
       {
          sleep( 1 );
       }
+#if 0
       printf( "%s: pushing level 1\n" , __func__ );
       msgSend_PushAlert( "Electrical", 100, 0);
       waitSec( 30 );
@@ -174,6 +176,11 @@ void *_main_loop( void *msg )
       printf( "%s: pushing level 3\n" , __func__ );
       msgSend_PushAlert( "Electrical", 100, 2);
       waitSec( 30 );
+#endif
+      msgQueue_Add( "Electrical", 100, 0);
+      msgQueue_Add( "Electrical", 100, 1);
+      msgQueue_Add( "Electrical", 100, 2);
+      waitSec(30);
    }
 
    // join on web server thread
