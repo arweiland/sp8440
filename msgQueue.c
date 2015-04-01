@@ -95,6 +95,7 @@ int msgQueue_Add( char *msg, int alarm, int level )
       return -1;
    }
 
+   Log( INFO, "%s: Queued alarm %d, level %d. Msg: %s\n", __func__, alarm, level, msg );
    return 0;
 }
 

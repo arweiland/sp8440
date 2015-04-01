@@ -41,6 +41,9 @@ int  PluginStatus;
 
 void *_main_thread( void *msg );
 
+// CLX function to register msgQueue_Add function
+
+extern void register_sp8440_alarm( int (*fun)(char *msg, int alarm, int level) );
 
 /*---------( init_plugin )----------
 
@@ -90,8 +93,9 @@ int init_plugin( plugin_t *stat )
 	  strcpy( stat->statstr, PluginStatusString );       // copy startup status string
    }
 
-   if ( PluginStatus == PLUGIN_RUNNING )
+   if ( stat->status == PLUGIN_RUNNING )
    {
+      register_sp8440_alarm( msgQueue_Add );          // provide function to call to add alarms
       // Start main plugin thread
       pthread_create( &tid, NULL, _main_thread, NULL );
    }
@@ -124,6 +128,10 @@ void *sp8440_Start( void *msg )
 
    // Start main plugin thread
    pthread_create( &tid, NULL, _main_thread, NULL );
+
+#ifndef PLUGIN
+   register_sp8440_alarm( msgQueue_Add );          // provide function to call to add alarms
+#endif
 
    return NULL;
 }

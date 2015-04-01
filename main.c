@@ -22,9 +22,13 @@
 #include "msgQueue.h"
 #endif
 
+int (*alarm_8440)(char *msg, int alarm, int level);           // pointer to alarm function
+
 int chk_sp8440Status( void );
 
 void _test_loop( void );
+int dummy( char *msg, int alarm, int level );
+void register_sp8440_alarm( int (*fun)(char *msg, int alarm, int level) );
 
 int main( void )
 {
@@ -52,6 +56,9 @@ int main( void )
    sp8440_Start( NULL );
 #endif
 
+//   register_sp8440_alarm( dummy );        // for test
+//   (*alarm_8440)("hello!", 100, 2 );
+
    _test_loop();
    return 0;
 }
@@ -75,22 +82,38 @@ int chk_sp8440Status( void )
 }
 
 
-/*----------- This is a temporary function for testing! -------------*/
-// In the real system, spRec_CheckStale should be called from timer or somewhere else
-
-#ifndef PLUGIN
-
+/*
+ *  Test loop.  Output alarms to plugin every 30 seconds
+ */
 void _test_loop( void )
 {
    sleep(1);
 
    while(1)
    {
-      msgQueue_Add( "Electrical", 100, 0);
-      msgQueue_Add( "Electrical", 100, 1);
-      msgQueue_Add( "Electrical", 100, 2);
+      if ( alarm_8440 != NULL )
+      {
+         (*alarm_8440)( "Electrical", 100, 0);
+         (*alarm_8440)( "Electrical", 100, 1);
+         (*alarm_8440)( "Electrical", 100, 2);
+      }
+      else
+      {
+         printf( "SP8440 function call not registered!\n" );
+         _exit(1);
+      }
       sleep(30);
    }
 }
 
-#endif
+
+/*
+ * Register the function to call to add alarms to be sent to the phones.
+ * This is the function that the CLX would call from the routing module
+ */
+
+void register_sp8440_alarm( int (*fun)(char *msg, int alarm, int level) )
+{
+   alarm_8440 = fun;           // save alarm function name
+}
+
